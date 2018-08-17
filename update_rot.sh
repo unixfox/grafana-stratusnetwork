@@ -13,9 +13,7 @@ do
 		current_rot="default"
 	fi
 	path="data/rotations/beta"
-	cd data
-	git pull > /dev/null
-	cd ..
+	git submodule foreach git pull origin master > /dev/null
 	echo $current_rot
 	mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "TRUNCATE currentrot;"
 	number_of_maps=$(cat $path/$current_rot.yml | yq -r '.maps | length')
