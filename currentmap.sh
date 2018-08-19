@@ -13,7 +13,7 @@ do
             mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "UPDATE currentmap SET Value = 'Computing...' WHERE id=7";
         fi
         if [[ -n $winner ]]; then
-            mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "UPDATE currentmap SET Value = '$winner won' WHERE id=4";
+            mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "UPDATE currentmap SET Value = '$winner won' WHERE id=7";
         fi
         mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "TRUNCATE recentmatches;"
         for i in {2..20}
