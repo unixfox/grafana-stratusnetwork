@@ -1,17 +1,25 @@
 #!/bin/bash
 while true
 do
-	get_current_rot=$(node bot.js us.stratus.network 25565 $mc_user $mc_passwd)
-	if [[ $get_current_rot == "error" ]]; then
+	info_bot=$(node bot.js us.stratus.network 25565 $mc_user $mc_passwd)
+	if [[ $info_bot == "error" ]]; then
 		echo error
         sleep 5m
-        get_current_rot=$(node bot.js us.stratus.network 25565 $mc_user $mc_passwd)
+        info_bot=$(node bot.js us.stratus.network 25565 $mc_user $mc_passwd)
     fi
-	current_rot=$(echo $get_current_rot | sed 's/\x1b\[[0-9;]*m//g' | pcregrep -o1 "Current Rotation \((?<rot>[a-zA-Z]+)\)" | sed 's/.*/\l&/')
+	current_rot=$(echo $info_bot | sed 's/\x1b\[[0-9;]*m//g' | pcregrep -o1 "Current Rotation \((?<rot>[a-zA-Z]+)\)" | sed 's/.*/\l&/')
+	timelimit=$(echo $info_bot | sed 's/\x1b\[[0-9;]*m//g' | pcregrep -o1 "The time limit is (?<timelimit>.+) with")
+	next_map=$(echo $info_bot | sed 's/\x1b\[[0-9;]*m//g' | pcregrep -o1 "Next map: (?<nxtmap>.+) by")
 	if [[ -z $current_rot ]]; then
 		echo null
 		current_rot="default"
 	fi
+	if [[ -z $timelimit ]]; then
+		timelimit="No time limit"
+	fi
+	mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "UPDATE currentmap SET Value = '$timelimit' WHERE id='4';"
+	mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "UPDATE currentmap SET Value = \"$next_map\" WHERE id='5';"
+	mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "UPDATE currentmap SET Value = '$current_rot' WHERE id='6';"
 	path="data/rotations/beta"
 	git submodule foreach git pull origin master > /dev/null
 	echo $current_rot

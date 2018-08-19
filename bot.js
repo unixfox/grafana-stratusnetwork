@@ -20,14 +20,15 @@ process.on('uncaughtException', function(err) {
 
 bot.on('message', (message) => {
   console.log(message.toAnsi());
-  if (message.toAnsi().includes('Rotation') == true || message.toAnsi().includes('No servers') == true)
+  if (message.toAnsi().includes('Next') == true || message.toAnsi().includes('No servers') == true)
   {
   bot.quit();
   setTimeout(function(){ process.exit(); }, 500);
   }
+  setTimeout(function(){ process.exit(); }, 10000);
 })
 
 bot.once('spawn', () => {
   bot.chat('/server mixed');
-  setTimeout(function(){ bot.chat('/rot');}, 500);
+  setTimeout(function(){ bot.chat('/rot'); bot.chat('/tl'); bot.chat('/next');}, 500);
 })
