@@ -17,6 +17,8 @@ var options = {
   tokensDebug: true
 };
 
+setTimeout(function(){ process.exit(); }, 10000);
+
 tokens.use(options, function(_err, _opts){
 
   if (_err) throw _err;
@@ -30,7 +32,6 @@ tokens.use(options, function(_err, _opts){
     bot.quit();
     setTimeout(function(){ process.exit(); }, 500);
     }
-    setTimeout(function(){ process.exit(); }, 10000);
   });
 
   bot.once('spawn', () => {
@@ -38,7 +39,7 @@ tokens.use(options, function(_err, _opts){
   });
 
   bot.once('respawn', () => {
-    bot.chat('/rot'); bot.chat('/tl'); bot.chat('/next');
+    bot.chat('/rot'); bot.chat('/tl'); bot.chat('/servers'); bot.chat('/next');
   });
 
 });
