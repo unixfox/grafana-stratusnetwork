@@ -23,10 +23,6 @@ tokens.use(options, function(_err, _opts){
 
   var bot = mineflayer.createBot(_opts);
 
-  bot.on('error', function(err) {
-    console.log('Error attempting to reconnect: ' + err.errno + '.');
-  });
-
   bot.on('message', (message) => {
     console.log(message.toAnsi());
     if (message.toAnsi().includes('Next') == true || message.toAnsi().includes('No servers') == true)
