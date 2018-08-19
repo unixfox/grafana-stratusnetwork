@@ -30,5 +30,5 @@ do
 		map_name=$(cat $path/$current_rot.yml | yq -r '.maps['$i']')
 		mysql -u $mysql_user -p$mysql_passwd stratusgraph -e "INSERT INTO currentrot (map_name) VALUES (\"$map_name\");"
 	done
-	sleep 1m
+	sleep 10s
 done
