@@ -1,10 +1,7 @@
-const mineflayer = require('mineflayer')
+var mineflayer = require('mineflayer')
 var tokens = require('prismarine-tokens')
-
-if (process.argv.length < 4 || process.argv.length > 6) {
-  console.log('Usage : node bot.js <host> <port> [<name>] [<password>]')
-  process.exit(1)
-}
+var readline = require('readline');
+var fs = require('fs');
 
 var options = {
   host: process.argv[2],
@@ -17,29 +14,82 @@ var options = {
   tokensDebug: true
 };
 
-setTimeout(function(){ process.exit(); }, 10000);
+var rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
 tokens.use(options, function(_err, _opts){
-
-  if (_err) throw _err;
-
-  var bot = mineflayer.createBot(_opts);
-
-  bot.on('message', (message) => {
-    console.log(message.toAnsi());
-    if (message.toAnsi().includes('Next') == true || message.toAnsi().includes('No servers') == true)
-    {
-    bot.quit();
-    setTimeout(function(){ process.exit(); }, 500);
-    }
-  });
-
-  bot.once('spawn', () => {
-    bot.chat('/server mixed');
-  });
-
-  bot.once('respawn', () => {
-    bot.chat('/rot'); bot.chat('/tl'); bot.chat('/servers'); bot.chat('/next');
-  });
-
+    if (_err) throw _err;
+    var bot = mineflayer.createBot(_opts);
+    bindEvents(bot, rl);
+    connect(bot);
+    recursiveAsyncReadLine(bot, rl);
 });
+
+function bindEvents(bot, rl) {
+
+    bot.on('error', function(err) {
+        console.log('Error attempting to reconnect: ' + err.errno + '.');
+        if (err.code == undefined) {
+            console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
+            console.log('Will retry to connect in 30 seconds. ');
+            setTimeout(relog, 30000);
+        }
+    });
+
+    bot.on('end', function() {
+        console.log("Bot has ended");
+        rl.write('exit\n');
+        setTimeout(relog, 30000);  
+    });
+}
+
+function relog() {
+    console.log("Attempting to reconnect...");
+    tokens.use(options, function(_err, _opts){
+        if (_err) throw _err;
+        var bot = mineflayer.createBot(_opts);
+        var rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        bindEvents(bot, rl);
+        connect(bot);
+        recursiveAsyncReadLine(bot, rl);
+    });
+}
+
+function connect(bot) {
+    bot.on('message', (message) => {
+        if (message.toAnsi().includes('No servers') == true)
+        {
+            setTimeout(function(){ bot.chat('/server mixed'); }, 10000);
+        }
+        var text = message.toAnsi() + '\r\n';
+        fs.appendFile('log', text);
+    });
+    bot.on('spawn', () => {
+        bot.chat('/server mixed');
+    });
+    bot.on('respawn', () => {
+        bot.chat('/server mixed');
+    });
+}
+
+function getinfo(bot)
+{
+    bot.chat('/rot'); bot.chat('/tl'); bot.chat('/servers'); bot.chat('/next');
+}
+
+var recursiveAsyncReadLine = function (bot, rl) {
+    rl.question('', function (answer) {
+    if (answer == 'exit')
+        return rl.close();
+    if (answer == 'info')
+    {
+        getinfo(bot);
+    }
+    recursiveAsyncReadLine(bot, rl);
+    });
+};

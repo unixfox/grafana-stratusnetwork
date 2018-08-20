@@ -3,3 +3,4 @@ output.log
 node_modules
 package-lock.json
 bot_tokens.json
+log
