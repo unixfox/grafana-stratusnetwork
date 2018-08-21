@@ -88,6 +88,7 @@ function connect(bot) {
         }
     });
     bot.on('whisper', (username, message, rawMessage) => {
+        if (username === bot.username) return
         if (username == "unixfox")
         {
             bot.chat(message);
