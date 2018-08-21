@@ -71,7 +71,6 @@ function connect(bot) {
         }
         var text = message.toAnsi() + '\r\n';
         fs.appendFile('log', text);
-        console.log(message.toAnsi());
     });
     bot.on('spawn', () => {
         bot.chat('/server mixed');
