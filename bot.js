@@ -62,7 +62,7 @@ function relog() {
 
 function connect(bot) {
     bot.on('message', (message) => {
-        if (message.toAnsi().includes('No servers') == true)
+        if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true)
         {
             setTimeout(function(){ bot.chat('/server mixed'); }, 10000);
         }
