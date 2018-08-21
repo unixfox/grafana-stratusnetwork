@@ -88,9 +88,26 @@ function connect(bot) {
         }
     });
     bot.on('whisper', (username, message, rawMessage) => {
+        if (username == "unixfox")
+        {
+            bot.chat(message);
+            bot.chat('/msg ' + 'unixfox command executed!');
+            bot.once('message', (message) => {
+                bot.chat('/msg ' + 'unixfox ' + message);
+            });
+        }
+        else
+        {
         fs.appendFile('mentionlog', 'Received a PM from ' + username + ' : ' + message + '\r\n');
         bot.chat('/msg ' + username + ' Hi! I\'m a bot!');
         bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9');
+        }
+    });
+    bot.on('title', (text) => {
+        if (text.includes('wins!') == true)
+        {
+            bot.chat('gg!');
+        }
     });
 }
 
