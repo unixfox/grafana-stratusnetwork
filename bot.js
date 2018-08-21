@@ -9,7 +9,7 @@ var options = {
   username: process.argv[4] ? process.argv[4] : 'ansi',
   password: process.argv[5],
   verbose: true,
-  version:"1.8",
+  version:"1.12.2",
   tokensLocation: './bot_tokens.json',
   tokensDebug: true
 };
@@ -61,6 +61,9 @@ function relog() {
 }
 
 function connect(bot) {
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'Stratus Network chat global');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'Stratus Network chat team');
+    bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Stratus Network PM')
     bot.on('message', (message) => {
         if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true)
         {
@@ -68,12 +71,27 @@ function connect(bot) {
         }
         var text = message.toAnsi() + '\r\n';
         fs.appendFile('log', text);
+        console.log(message.toAnsi());
     });
     bot.on('spawn', () => {
         bot.chat('/server mixed');
     });
     bot.on('respawn', () => {
         bot.chat('/server mixed');
+    });
+    bot.on('chat', (username, message, type, rawMessage, matches) => {
+        if (username === bot.username) return
+        if (message.includes('unixbox') == true)
+        {
+            fs.appendFile('mentionlog', 'Was mentioned in the chat from ' + username + ' : ' + message + '\r\n');
+            bot.chat('/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
+            bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9');
+        }
+    });
+    bot.on('whisper', (username, message, rawMessage) => {
+        fs.appendFile('mentionlog', 'Received a PM from ' + username + ' : ' + message + '\r\n');
+        bot.chat('/msg ' + username + ' Hi! I\'m a bot!');
+        bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9');
     });
 }
 
