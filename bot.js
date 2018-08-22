@@ -6,14 +6,14 @@ var fs = require('fs');
 var countreconnect = 0;
 
 var options = {
-  host: process.argv[2],
-  port: parseInt(process.argv[3]),
-  username: process.argv[4] ? process.argv[4] : 'ansi',
-  password: process.argv[5],
-  verbose: true,
-  version:"1.12.2",
-  tokensLocation: './bot_tokens.json',
-  tokensDebug: true
+    host: process.argv[2],
+    port: parseInt(process.argv[3]),
+    username: process.argv[4] ? process.argv[4] : 'ansi',
+    password: process.argv[5],
+    verbose: true,
+    version: "1.12.2",
+    tokensLocation: './bot_tokens.json',
+    tokensDebug: true
 };
 
 var rl = readline.createInterface({
@@ -21,7 +21,7 @@ var rl = readline.createInterface({
     output: process.stdout
 });
 
-tokens.use(options, function(_err, _opts){
+tokens.use(options, function (_err, _opts) {
     if (_err) throw _err;
     var bot = mineflayer.createBot(_opts);
     bindEvents(bot, rl);
@@ -31,7 +31,7 @@ tokens.use(options, function(_err, _opts){
 
 function bindEvents(bot, rl) {
 
-    bot.on('error', function(err) {
+    bot.on('error', function (err) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
         if (err.code == undefined) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
@@ -40,16 +40,16 @@ function bindEvents(bot, rl) {
         };
     });
 
-    bot.on('end', function() {
+    bot.on('end', function () {
         console.log("Bot has ended");
         rl.write('exit\n');
-        setTimeout(relog, 30000);  
+        setTimeout(relog, 30000);
     });
 }
 
 function relog() {
     console.log("Attempting to reconnect...");
-    tokens.use(options, function(_err, _opts){
+    tokens.use(options, function (_err, _opts) {
         if (_err) throw _err;
         var bot = mineflayer.createBot(_opts);
         var rl = readline.createInterface({
@@ -69,9 +69,8 @@ function connect(bot) {
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'Stratus Network chat team');
     bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Stratus Network PM')
     bot.on('message', (message) => {
-        if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true)
-        {
-            setTimeout(function(){ bot.chat('/server mixed'); }, 10000);
+        if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true) {
+            setTimeout(function () { bot.chat('/server mixed'); }, 10000);
         }
         var text = message.toAnsi() + '\r\n';
         fs.appendFile('log', text);
@@ -81,29 +80,55 @@ function connect(bot) {
     });
     bot.on('respawn', () => {
         bot.chat('/server mixed');
+        setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
     });
     bot.on('chat', (username, message, type, rawMessage, matches) => {
         if (username === bot.username) return
-        if (message.includes('unixbox') == true)
-        {
+        if (message.includes('unixbox') == true) {
             var datetime = new Date();
-            fs.appendFile('mentionlog', '[' + datetime + ']' + username + 'mentioned me in the chat: ' + message + '\r\n');
+            fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' mentioned me in the chat: ' + message + '\r\n');
             bot.chat('/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
             bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9');
+        }
+        if (bot.players[username]) {
+            target = bot.players[username].entity;
+            let entity;
+            entity = nearestEntity();
+            function nearestEntity(type) {
+                let id
+                let entity
+                let dist
+                let best = null
+                let bestDistance = null
+                for (id in bot.entities) {
+                    entity = bot.entities[id]
+                    if (type && entity.type !== type) continue
+                    if (entity === bot.entity) continue
+                    dist = bot.entity.position.distanceTo(entity.position)
+                    if (!best || dist < bestDistance) {
+                        best = entity
+                        bestDistance = dist
+                    }
+                }
+                return best
+            };
+            setInterval(watchTarget, 50);
+            function watchTarget() {
+                if (!target) return
+                bot.lookAt(target.position.offset(0, target.height, 0));
+            };
         }
     });
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
-        if (username == "unixfox")
-        {
+        if (username == "unixfox") {
             bot.chat(message);
             bot.chat('/msg ' + 'unixfox command executed!');
             bot.once('message', (message) => {
                 bot.chat('/msg ' + 'unixfox ' + message);
             });
         }
-        else
-        {
+        else {
             var datetime = new Date();
             fs.appendFile('mentionlog', '[' + datetime + ']Received a PM from ' + username + ' : ' + message + '\r\n');
             bot.chat('/msg ' + username + ' Hi! I\'m a bot!');
@@ -111,9 +136,10 @@ function connect(bot) {
         }
     });
     bot.on('title', (text) => {
-        if (text.includes('wins!') == true)
-        {
-            bot.chat('gg!');
+        if (text.includes('wins!') == true) {
+            var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!'];
+            var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
+            bot.chat(randomsentense);
         }
     });
     bot.on('kicked', (reason, loggedIn) => {
@@ -122,19 +148,17 @@ function connect(bot) {
     });
 }
 
-function getinfo(bot)
-{
+function getinfo(bot) {
     bot.chat('/rot'); bot.chat('/tl'); bot.chat('/servers'); bot.chat('/next');
 }
 
 var recursiveAsyncReadLine = function (bot, rl) {
     rl.question('', function (answer) {
-    if (answer == 'exit')
-        return rl.close();
-    if (answer == 'info')
-    {
-        getinfo(bot);
-    }
-    recursiveAsyncReadLine(bot, rl);
+        if (answer == 'exit')
+            return rl.close();
+        if (answer == 'info') {
+            getinfo(bot);
+        }
+        recursiveAsyncReadLine(bot, rl);
     });
 };
