@@ -3,6 +3,8 @@ var tokens = require('prismarine-tokens')
 var readline = require('readline');
 var fs = require('fs');
 
+var countreconnect = 0;
+
 var options = {
   host: process.argv[2],
   port: parseInt(process.argv[3]),
@@ -35,7 +37,7 @@ function bindEvents(bot, rl) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
             console.log('Will retry to connect in 30 seconds. ');
             setTimeout(relog, 30000);
-        }
+        };
     });
 
     bot.on('end', function() {
@@ -58,6 +60,8 @@ function relog() {
         connect(bot);
         recursiveAsyncReadLine(bot, rl);
     });
+    if (countreconnect >= 20) process.exit();
+    countreconnect++;
 }
 
 function connect(bot) {
