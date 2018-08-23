@@ -80,10 +80,17 @@ function connect(bot) {
     });
     bot.on('respawn', () => {
         bot.chat('/server mixed');
+        bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
     });
     bot.on('chat', (username, message, type, rawMessage, matches) => {
         if (username === bot.username) return
+        if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
+            bot.chat('/tp ' + username);
+        bot.clearControlStates();
+        bot.setControlState('forward', true);
+        bot.setControlState('jump', true);
+        bot.setControlState('sprint', true);
         if (message.includes('unixbox') == true) {
             var datetime = new Date();
             fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' mentioned me in the chat: ' + message + '\r\n');
@@ -122,11 +129,59 @@ function connect(bot) {
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
         if (username == "unixfox") {
-            bot.chat(message);
-            bot.chat('/msg ' + 'unixfox command executed!');
-            bot.once('message', (message) => {
-                bot.chat('/msg ' + 'unixfox ' + message);
-            });
+            switch (message) {
+                case 'forward':
+                    bot.setControlState('forward', true)
+                    break
+                case 'back':
+                    bot.setControlState('back', true)
+                    break
+                case 'left':
+                    bot.setControlState('left', true)
+                    break
+                case 'right':
+                    bot.setControlState('right', true)
+                    break
+                case 'sprint':
+                    bot.setControlState('sprint', true)
+                    break
+                case 'stop':
+                    bot.clearControlStates()
+                    break
+                case 'jump':
+                    bot.setControlState('jump', true)
+                    bot.setControlState('jump', false)
+                    break
+                case 'jump a lot':
+                    bot.setControlState('jump', true)
+                    break
+                case 'stop jumping':
+                    bot.setControlState('jump', false)
+                    break
+                case 'attack':
+                    entity = nearestEntity()
+                    if (entity) {
+                        bot.attack(entity, true)
+                    } else {
+                        bot.chat('/msg ' + 'unixfox no nearby entities');
+                    }
+                    break
+                case 'tp':
+                    bot.entity.position.y += 10
+                    break
+                case 'pos':
+                    bot.chat(bot.entity.position.toString())
+                    break
+                case 'yp':
+                    bot.chat(`Yaw ${bot.entity.yaw}, pitch: ${bot.entity.pitch}`)
+                    break
+                default:
+                    bot.chat(message);
+                    bot.chat('/msg ' + 'unixfox command executed!');
+                    bot.once('message', (message) => {
+                        bot.chat('/msg ' + 'unixfox ' + message);
+                    });
+            }
         }
         else {
             var datetime = new Date();
@@ -137,7 +192,7 @@ function connect(bot) {
     });
     bot.on('title', (text) => {
         if (text.includes('wins!') == true) {
-            var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!'];
+            var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
             var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
             bot.chat(randomsentense);
         }
