@@ -35,8 +35,7 @@ function bindEvents(bot, rl) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
         if (err.code == undefined) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
-            console.log('Will retry to connect in 30 seconds. ');
-            setTimeout(relog, 30000);
+            process.exit();
         };
     });
 
