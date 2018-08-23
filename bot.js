@@ -85,16 +85,44 @@ function connect(bot) {
     });
     bot.on('chat', (username, message, type, rawMessage, matches) => {
         if (username === bot.username) return
-        bot.clearControlStates();
         fs.readFile('ignore', 'utf8', function (err, data) {
             if (err) throw err;
             if (data.includes(username) == false) {
+                bot.clearControlStates();
                 if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
                     bot.chat('/tp ' + username);
                 bot.activateItem();
                 bot.setControlState('forward', true);
                 bot.setControlState('jump', true);
                 bot.setControlState('sprint', true);
+                if (bot.players[username]) {
+                    target = bot.players[username].entity;
+                    let entity;
+                    entity = nearestEntity();
+                    function nearestEntity(type) {
+                        let id
+                        let entity
+                        let dist
+                        let best = null
+                        let bestDistance = null
+                        for (id in bot.entities) {
+                            entity = bot.entities[id]
+                            if (type && entity.type !== type) continue
+                            if (entity === bot.entity) continue
+                            dist = bot.entity.position.distanceTo(entity.position)
+                            if (!best || dist < bestDistance) {
+                                best = entity
+                                bestDistance = dist
+                            }
+                        }
+                        return best
+                    };
+                    setInterval(watchTarget, 50);
+                    function watchTarget() {
+                        if (!target) return
+                        bot.lookAt(target.position.offset(0, target.height, 0));
+                    };
+                }
             }
         });
         if (message.includes('unixbox') == true) {
@@ -102,34 +130,6 @@ function connect(bot) {
             fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' mentioned me in the chat: ' + message + '\r\n');
             bot.chat('/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
             bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9');
-        }
-        if (bot.players[username]) {
-            target = bot.players[username].entity;
-            let entity;
-            entity = nearestEntity();
-            function nearestEntity(type) {
-                let id
-                let entity
-                let dist
-                let best = null
-                let bestDistance = null
-                for (id in bot.entities) {
-                    entity = bot.entities[id]
-                    if (type && entity.type !== type) continue
-                    if (entity === bot.entity) continue
-                    dist = bot.entity.position.distanceTo(entity.position)
-                    if (!best || dist < bestDistance) {
-                        best = entity
-                        bestDistance = dist
-                    }
-                }
-                return best
-            };
-            setInterval(watchTarget, 50);
-            function watchTarget() {
-                if (!target) return
-                bot.lookAt(target.position.offset(0, target.height, 0));
-            };
         }
     });
     bot.on('whisper', (username, message, rawMessage) => {
