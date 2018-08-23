@@ -85,13 +85,18 @@ function connect(bot) {
     });
     bot.on('chat', (username, message, type, rawMessage, matches) => {
         if (username === bot.username) return
-        if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
-            bot.chat('/tp ' + username);
         bot.clearControlStates();
-        bot.activateItem();
-        bot.setControlState('forward', true);
-        bot.setControlState('jump', true);
-        bot.setControlState('sprint', true);
+        fs.readFile('ignore', 'utf8', function (err, data) {
+            if (err) throw err;
+            if (data.includes(username) == false) {
+                if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
+                    bot.chat('/tp ' + username);
+                bot.activateItem();
+                bot.setControlState('forward', true);
+                bot.setControlState('jump', true);
+                bot.setControlState('sprint', true);
+            }
+        });
         if (message.includes('unixbox') == true) {
             var datetime = new Date();
             fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' mentioned me in the chat: ' + message + '\r\n');
@@ -129,6 +134,11 @@ function connect(bot) {
     });
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
+        if (message.includes('stop') == true) {
+            bot.clearControlStates();
+            fs.appendFile('ignore', username + '\r\n');
+            bot.chat('/msg ' + username + ' Hi, I\'m just a bot... I\'m sorry. I will never bother you again.');
+        }
         if (username == "unixfox") {
             switch (message) {
                 case 'forward':
