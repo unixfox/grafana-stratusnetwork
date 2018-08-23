@@ -139,7 +139,7 @@ function connect(bot) {
             fs.appendFile('ignore', username + '\r\n');
             bot.chat('/msg ' + username + ' Hi, I\'m just a bot... I\'m sorry. I will never bother you again.');
         }
-        if (username == "unixfox") {
+        else if (username == "unixfox") {
             switch (message) {
                 case 'forward':
                     bot.setControlState('forward', true)
