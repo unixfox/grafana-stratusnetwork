@@ -88,6 +88,7 @@ function connect(bot) {
         if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
             bot.chat('/tp ' + username);
         bot.clearControlStates();
+        bot.activateItem();
         bot.setControlState('forward', true);
         bot.setControlState('jump', true);
         bot.setControlState('sprint', true);
@@ -194,7 +195,7 @@ function connect(bot) {
         if (text.includes('wins!') == true) {
             var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
             var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
-            bot.chat(randomsentense);
+            setTimeout(function () { bot.chat(randomsentense); }, 3000);
         }
     });
     bot.on('kicked', (reason, loggedIn) => {
