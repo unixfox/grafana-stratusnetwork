@@ -88,8 +88,9 @@ function connect(bot) {
             if (err) throw err;
             if (data.includes(username) == false) {
                 bot.clearControlStates();
-                if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
-                    bot.chat('/tp ' + username);
+                if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name)
+                    if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
+                        bot.chat('/tp ' + username);
                 bot.activateItem();
                 bot.setControlState('forward', true);
                 bot.setControlState('jump', true);
