@@ -2,6 +2,8 @@ var mineflayer = require('mineflayer')
 var tokens = require('prismarine-tokens')
 var readline = require('readline');
 var fs = require('fs');
+var cleverbot = require("cleverbot.io");
+cbot = new cleverbot(process.env.cleverAPIUser, process.env.cleverAPIKey);
 
 var countreconnect = 0;
 
@@ -64,9 +66,11 @@ function relog() {
 }
 
 function connect(bot) {
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: unixbox (.*)$/, 'cleverg', 'Stratus Network Cleverbot Global');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): unixbox (.*)$/, 'clevert', 'Stratus Network Cleverbot Team');
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'Stratus Network chat global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'Stratus Network chat team');
-    bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Stratus Network PM')
+    bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Stratus Network PM');
     bot.on('message', (message) => {
         if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true) {
             setTimeout(function () { bot.chat('/server mixed'); }, 10000);
@@ -82,64 +86,89 @@ function connect(bot) {
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
     });
-    bot.on('chat', (username, message, type, rawMessage, matches) => {
+    bot.on('clevert', (username, message) => {
         if (username === bot.username) return
-        fs.readFile('ignore', 'utf8', function (err, data) {
-            if (err) throw err;
-            if (data.includes(username) == false) {
-                bot.clearControlStates();
-                if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name)
-                    if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
-                        bot.chat('/tp ' + username);
-                bot.activateItem();
-                bot.setControlState('forward', true);
-                bot.setControlState('jump', true);
-                bot.setControlState('sprint', true);
-                if (bot.players[username]) {
-                    target = bot.players[username].entity;
-                    let entity;
-                    entity = nearestEntity();
-                    function nearestEntity(type) {
-                        let id
-                        let entity
-                        let dist
-                        let best = null
-                        let bestDistance = null
-                        for (id in bot.entities) {
-                            entity = bot.entities[id]
-                            if (type && entity.type !== type) continue
-                            if (entity === bot.entity) continue
-                            dist = bot.entity.position.distanceTo(entity.position)
-                            if (!best || dist < bestDistance) {
-                                best = entity
-                                bestDistance = dist
-                            }
-                        }
-                        return best
-                    };
-                    setInterval(watchTarget, 50);
-                    function watchTarget() {
-                        if (!target) return
-                        bot.lookAt(target.position.offset(0, target.height, 0));
-                    };
-                }
-            }
+        var datetime = new Date();
+        fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
+        cbot.setNick(username);
+        cbot.create(function (err, session) {
+            cbot.ask(message, function (err, response) {
+                var datetime = new Date();
+                bot.chat(username + ' ' + response);
+                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + response + '\r\n');
+            });
         });
-        if (message.includes('unixbox') == true) {
+    });
+    bot.on('cleverg', (username, message) => {
+        if (username === bot.username) return
+        var datetime = new Date();
+        fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
+        cbot.setNick(username);
+        cbot.create(function (err, session) {
+            cbot.ask(message, function (err, response) {
+                var datetime = new Date();
+                bot.chat('/g ' + username + ' ' + response);
+                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + response + '\r\n');
+            });
+        });
+    });
+    bot.on('chat', (username, message, jsonMsg) => {
+        if (username === bot.username) return
+        if (message.includes('unixbox') == true && !message.match(/^unixbox (.*)$/)) {
             var datetime = new Date();
             fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' mentioned me in the chat: ' + message + '\r\n');
             bot.chat('/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
             setTimeout(function () { bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
         }
+        else if (!message.match(/^unixbox (.*)$/))
+        {
+            fs.readFile('ignore', 'utf8', function (err, data) {
+                if (err) throw err;
+                if (data.includes(username) == false) {
+                    bot.clearControlStates();
+                    if (bot.blockAt(bot.entity.position.offset(0, -2, 0)) != null)
+                        if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name)
+                            if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
+                                bot.chat('/tp ' + username);
+                    bot.activateItem();
+                    bot.setControlState('forward', true);
+                    bot.setControlState('jump', true);
+                    bot.setControlState('sprint', true);
+                    if (bot.players[username]) {
+                        target = bot.players[username].entity;
+                        let entity;
+                        entity = nearestEntity();
+                        function nearestEntity(type) {
+                            let id
+                            let entity
+                            let dist
+                            let best = null
+                            let bestDistance = null
+                            for (id in bot.entities) {
+                                entity = bot.entities[id]
+                                if (type && entity.type !== type) continue
+                                if (entity === bot.entity) continue
+                                dist = bot.entity.position.distanceTo(entity.position)
+                                if (!best || dist < bestDistance) {
+                                    best = entity
+                                    bestDistance = dist
+                                }
+                            }
+                            return best
+                        };
+                        setInterval(watchTarget, 50);
+                        function watchTarget() {
+                            if (!target) return
+                            bot.lookAt(target.position.offset(0, target.height, 0));
+                        };
+                    }
+                }
+            });
+        }
     });
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
-        if (message.includes('stop') == true) {
-            bot.clearControlStates();
-            fs.appendFile('ignore', username + '\r\n');
-            bot.chat('/msg ' + username + ' Hi, I\'m just a bot... I\'m sorry. I will never bother you again.');
-        }
-        else if (username == "unixfox") {
+        if (username == "unixfox") {
             switch (message) {
                 case 'forward':
                     bot.setControlState('forward', true)
@@ -193,6 +222,11 @@ function connect(bot) {
                         bot.chat('/msg ' + 'unixfox ' + message);
                     });
             }
+        }
+        else if (message.includes('stop') == true) {
+            bot.clearControlStates();
+            fs.appendFile('ignore', username + '\r\n');
+            bot.chat('/msg ' + username + ' Hi, I\'m just a bot... I\'m sorry. I will never bother you again.');
         }
         else {
             var datetime = new Date();
