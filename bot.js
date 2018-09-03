@@ -112,7 +112,7 @@ function connect(bot) {
             });
         });
     });
-    bot.on('chat', (username, message, jsonMsg) => {
+    bot.on('chat', (username, message) => {
         if (username === bot.username) return
         if (message.includes('unixbox') == true && !message.match(/^unixbox (.*)$/)) {
             var datetime = new Date();
@@ -223,7 +223,7 @@ function connect(bot) {
                     });
             }
         }
-        else if (message.includes('stop') == true) {
+        else if (message.includes('stop') == true || message.includes('ignore') == true) {
             bot.clearControlStates();
             fs.appendFile('ignore', username + '\r\n');
             bot.chat('/msg ' + username + ' Hi, I\'m just a bot... I\'m sorry. I will never bother you again.');
