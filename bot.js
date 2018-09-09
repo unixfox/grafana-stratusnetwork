@@ -10,8 +10,8 @@ var countreconnect = 0;
 var options = {
     host: process.argv[2],
     port: parseInt(process.argv[3]),
-    username: process.argv[4] ? process.argv[4] : 'ansi',
-    password: process.argv[5],
+    username: process.env.mc_user,
+    password: process.env.mc_passwd,
     verbose: true,
     version: "1.12.2",
     tokensLocation: './bot_tokens.json',
@@ -71,6 +71,26 @@ function connect(bot) {
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'Stratus Network chat global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'Stratus Network chat team');
     bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Stratus Network PM');
+    bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Stratus Network Rotation command');
+    bot.chatAddPattern(/The time limit is (.+) with the result(.*?)/, 'tlcmd', 'Stratus Network Time limit command');
+    bot.chatAddPattern(/There is no time limit$/, 'notlcmd', 'Stratus Network Time limit command');
+    bot.chatAddPattern(/Next map: ([^ ]*)/, 'nextmapcmd', 'Stratus Network Next map command');
+    bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Stratus Network Players command');
+    bot.on('rotcmd', (username) => {
+        console.log(username);
+    });
+    bot.on('tlcmd', (username) => {
+        console.log(username);
+    });
+    bot.on('nextmapcmd', (username) => {
+        console.log(username);
+    });
+    bot.on('playerscmd', (username) => {
+        console.log(username);
+    });
+    bot.on('notlcmd', (username) => {
+        console.log('true');
+    });
     bot.on('message', (message) => {
         if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true) {
             setTimeout(function () { bot.chat('/server mixed'); }, 10000);
