@@ -5,8 +5,11 @@ var fs = require('fs');
 var cleverbot = require("cleverbot.io");
 cbot = new cleverbot(process.env.cleverAPIUser, process.env.cleverAPIKey);
 const mysql = require('mysql2');
+var Cooldown = require('cooldown');
 
 var countreconnect = 0;
+var cd = new Cooldown(600000);
+
 
 var options = {
     host: process.argv[2],
@@ -98,6 +101,7 @@ function connect(bot) {
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Stratus Network Players command');
     bot.chatAddPattern(/(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'Stratus Network shot');
     bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'Stratus Network length match');
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: alexa (.*)$/, 'alexacmd', 'Stratus Network alexa');
 
     bot.on('rotcmd', (username) => {
         console.log(username);
@@ -113,6 +117,19 @@ function connect(bot) {
     });
     bot.on('notlcmd', (username) => {
         console.log('true');
+    });
+    bot.on('alexacmd', (username, message) => {
+        if (message.includes('prediction') == true && cd.fire())
+        {
+            connection.query(
+                "SELECT Value FROM currentmap WHERE id='7'",
+                function(err, result, fields) {
+                    bot.chat('/g The prediction of the match: ' + result[0]['Value'] + ' will win.');
+                }
+            );
+        }
+        else if (message.includes('despacito') == true && cd.fire())
+            bot.chat('/g ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
     });
     bot.on('shotblocks', (username, message) => {
         connection.query(
