@@ -4,6 +4,8 @@ var readline = require('readline');
 var fs = require('fs');
 var cleverbot = require("cleverbot.io");
 cbot = new cleverbot(process.env.cleverAPIUser, process.env.cleverAPIKey);
+const mysql = require('mysql2');
+
 
 var countreconnect = 0;
 
@@ -17,6 +19,13 @@ var options = {
     tokensLocation: './bot_tokens.json',
     tokensDebug: true
 };
+
+const connection = mysql.createConnection({
+    host: 'localhost',
+    user: process.env.mysql_user,
+    password: process.env.mysql_passwd,
+    database: 'stratusgraph'
+});
 
 var rl = readline.createInterface({
     input: process.stdin,
@@ -48,6 +57,18 @@ function bindEvents(bot, rl) {
     });
 }
 
+function hmsToSecondsOnly(str) {
+    var p = str.split(':'),
+        s = 0, m = 1;
+
+    while (p.length > 0) {
+        s += m * parseInt(p.pop(), 10);
+        m *= 60;
+    }
+
+    return s;
+}
+
 function relog() {
     console.log("Attempting to reconnect...");
     tokens.use(options, function (_err, _opts) {
@@ -76,6 +97,9 @@ function connect(bot) {
     bot.chatAddPattern(/There is no time limit$/, 'notlcmd', 'Stratus Network Time limit command');
     bot.chatAddPattern(/Next map: ([^ ]*)/, 'nextmapcmd', 'Stratus Network Next map command');
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Stratus Network Players command');
+    bot.chatAddPattern(/(?:[\w\d_]+) was shot(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'Stratus Network shot');
+    bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'Stratus Network length match');
+
     bot.on('rotcmd', (username) => {
         console.log(username);
     });
@@ -90,6 +114,22 @@ function connect(bot) {
     });
     bot.on('notlcmd', (username) => {
         console.log('true');
+    });
+    bot.on('shotblocks', (username, message) => {
+        connection.query(
+            "SELECT Value FROM facts WHERE id='2'",
+            function(err, result, fields) {
+                if (Number(message) > Number(result[0]['Value']))
+                {
+                    connection.query(
+                        "UPDATE `facts` SET `value`='" + message + "' WHERE  `id`=2;"
+                    );
+                    connection.query(
+                        "UPDATE `facts` SET `value`='" + username + "' WHERE  `id`=3;"
+                    );
+                }
+            }
+        );
     });
     bot.on('message', (message) => {
         if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true) {
@@ -260,7 +300,21 @@ function connect(bot) {
             var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
             var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
             setTimeout(function () { bot.chat(randomsentense); }, 3000);
-        }
+            bot.chat('/match');
+            bot.once('lengthmatch', (username) => {
+                connection.query(
+                    "SELECT Value FROM facts WHERE id='1'",
+                    function(err, result, fields) {
+                        if (Number(hmsToSecondsOnly(username)) > Number(result[0]['Value']))
+                        {
+                            connection.query(
+                                "UPDATE `facts` SET `value`='" + hmsToSecondsOnly(username) + "' WHERE  `id`=1;"
+                            );
+                        }
+                    }
+                );
+            });
+        };
     });
     bot.on('kicked', (reason, loggedIn) => {
         console.log(reason);
@@ -272,13 +326,47 @@ function getinfo(bot) {
     bot.chat('/rot'); bot.chat('/tl'); bot.chat('/servers'); bot.chat('/next');
 }
 
+function factsday(bot)
+{
+    var longestmatch;
+    var longestshotplayer;
+    var longestshotblocks;
+    connection.query(
+        "SELECT Value FROM facts WHERE id='1'",
+        function(err, result, fields) {
+            totalSeconds = result[0]['Value'];
+            hours = Math.floor(totalSeconds / 3600);
+            totalSeconds %= 3600;
+            minutes = Math.floor(totalSeconds / 60);
+            seconds = totalSeconds % 60;
+            longestmatch = hours + " hour(s), " + minutes + " minute(s) and " + seconds + " second(s)"
+        }
+    );
+    connection.query(
+        "SELECT Value FROM facts WHERE id='2'",
+        function(err, result, fields) {
+            longestshotblocks = result[0]['Value'];
+        }
+    );
+    connection.query(
+        "SELECT Value FROM facts WHERE id='3'",
+        function(err, results, fields) {
+            longestshotplayer = results[0]['Value'];
+        }
+    );
+    console.log('It\'s midnight (UTC), it\'s time for the facts of the day everyone!');
+    setTimeout(function () { console.log('The longest shot of the day is awarded to ' + longestshotplayer + " with " + longestshotblocks + " blocks!"); }, 1000);
+    setTimeout(function () { console.log('The length of today\'s longest match was ' + longestmatch + "!"); }, 1500);
+}
+
 var recursiveAsyncReadLine = function (bot, rl) {
     rl.question('', function (answer) {
         if (answer == 'exit')
             return rl.close();
-        if (answer == 'info') {
+        if (answer == 'info')
             getinfo(bot);
-        }
+        if (answer == 'facts')
+            factsday(bot);
         recursiveAsyncReadLine(bot, rl);
     });
 };
