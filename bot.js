@@ -6,7 +6,6 @@ var cleverbot = require("cleverbot.io");
 cbot = new cleverbot(process.env.cleverAPIUser, process.env.cleverAPIKey);
 const mysql = require('mysql2');
 
-
 var countreconnect = 0;
 
 var options = {
@@ -24,7 +23,8 @@ const connection = mysql.createConnection({
     host: 'localhost',
     user: process.env.mysql_user,
     password: process.env.mysql_passwd,
-    database: 'stratusgraph'
+    database: 'stratusgraph',
+    port: '3307'
 });
 
 var rl = readline.createInterface({
@@ -97,7 +97,7 @@ function connect(bot) {
     bot.chatAddPattern(/There is no time limit$/, 'notlcmd', 'Stratus Network Time limit command');
     bot.chatAddPattern(/Next map: ([^ ]*)/, 'nextmapcmd', 'Stratus Network Next map command');
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Stratus Network Players command');
-    bot.chatAddPattern(/(?:[\w\d_]+) was shot(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'Stratus Network shot');
+    bot.chatAddPattern(/(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'Stratus Network shot');
     bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'Stratus Network length match');
 
     bot.on('rotcmd', (username) => {
@@ -328,35 +328,19 @@ function getinfo(bot) {
 
 function factsday(bot)
 {
-    var longestmatch;
-    var longestshotplayer;
-    var longestshotblocks;
+    bot.chat('It\'s midnight (UTC), it\'s time for the facts of the day everyone!');
     connection.query(
-        "SELECT Value FROM facts WHERE id='1'",
+        "SELECT Value FROM facts WHERE id IN ('1','2','3')",
         function(err, result, fields) {
             totalSeconds = result[0]['Value'];
             hours = Math.floor(totalSeconds / 3600);
             totalSeconds %= 3600;
             minutes = Math.floor(totalSeconds / 60);
             seconds = totalSeconds % 60;
-            longestmatch = hours + " hour(s), " + minutes + " minute(s) and " + seconds + " second(s)"
+            bot.chat('The length of today\'s longest match was ' + hours + " hour(s), " + minutes + " minute(s) and " + seconds + " second(s)" + "!");
+            bot.chat('The longest shot of the day is awarded to ' + result[2]['Value'] + " with " + result[1]['Value'] + " blocks!");
         }
     );
-    connection.query(
-        "SELECT Value FROM facts WHERE id='2'",
-        function(err, result, fields) {
-            longestshotblocks = result[0]['Value'];
-        }
-    );
-    connection.query(
-        "SELECT Value FROM facts WHERE id='3'",
-        function(err, results, fields) {
-            longestshotplayer = results[0]['Value'];
-        }
-    );
-    console.log('It\'s midnight (UTC), it\'s time for the facts of the day everyone!');
-    setTimeout(function () { console.log('The longest shot of the day is awarded to ' + longestshotplayer + " with " + longestshotblocks + " blocks!"); }, 1000);
-    setTimeout(function () { console.log('The length of today\'s longest match was ' + longestmatch + "!"); }, 1500);
 }
 
 var recursiveAsyncReadLine = function (bot, rl) {
