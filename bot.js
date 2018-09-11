@@ -23,8 +23,7 @@ const connection = mysql.createConnection({
     host: 'localhost',
     user: process.env.mysql_user,
     password: process.env.mysql_passwd,
-    database: 'stratusgraph',
-    port: '3307'
+    database: 'stratusgraph'
 });
 
 var rl = readline.createInterface({
