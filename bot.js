@@ -5,6 +5,7 @@ var fs = require('fs');
 var cleverbot = require("cleverbot.io");
 cbot = new cleverbot(process.env.cleverAPIUser, process.env.cleverAPIKey);
 const mysql = require('mysql2');
+var getJSON = require('get-json');
 var Cooldown = require('cooldown');
 
 var countreconnect = 0;
@@ -26,7 +27,8 @@ const connection = mysql.createConnection({
     host: 'localhost',
     user: process.env.mysql_user,
     password: process.env.mysql_passwd,
-    database: 'stratusgraph'
+    database: 'stratusgraph',
+    port: (process.env.mysql_port || 3306)
 });
 
 var rl = readline.createInterface({
@@ -89,47 +91,66 @@ function relog() {
 }
 
 function connect(bot) {
-    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: unixbox (.*)$/, 'cleverg', 'Stratus Network Cleverbot Global');
-    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): unixbox (.*)$/, 'clevert', 'Stratus Network Cleverbot Team');
-    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'Stratus Network chat global');
-    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'Stratus Network chat team');
-    bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Stratus Network PM');
-    bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Stratus Network Rotation command');
-    bot.chatAddPattern(/The time limit is (.+) with the result(.*?)/, 'tlcmd', 'Stratus Network Time limit command');
-    bot.chatAddPattern(/There is no time limit$/, 'notlcmd', 'Stratus Network Time limit command');
-    bot.chatAddPattern(/Next map: ([^ ]*)/, 'nextmapcmd', 'Stratus Network Next map command');
-    bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Stratus Network Players command');
-    bot.chatAddPattern(/(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'Stratus Network shot');
-    bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'Stratus Network length match');
-    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: alexa (.*)$/, 'alexacmd', 'Stratus Network alexa');
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: unixbox (.*)$/, 'cleverg', 'Cleverbot Global');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): unixbox (.*)$/, 'clevert', 'Cleverbot Team');
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'chat global');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'chat team');
+    bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
+    bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
+    bot.chatAddPattern(/The time limit is (.+) with the result(?:.*?)/, 'tlcmd', 'Time limit');
+    bot.chatAddPattern(/There is no time limit$/, 'notlcmd', 'No time limit');
+    bot.chatAddPattern(/Next map: ([^ ]*)/, 'nextmapcmd', 'Next map');
+    bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Players playing on Mixed');
+    bot.chatAddPattern(/(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'shot kill');
+    bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
+    bot.chatAddPattern(/Current: ([\w]+)$/, 'rotationchange', 'rotation change');
 
+    bot.on('rotationchange', (username) => {
+        console.log(username);
+    });
     bot.on('rotcmd', (username) => {
         console.log(username);
     });
     bot.on('tlcmd', (username) => {
-        console.log(username);
+        connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='4';");
     });
     bot.on('nextmapcmd', (username) => {
-        console.log(username);
+        connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='5';");
     });
     bot.on('playerscmd', (username) => {
-        console.log(username);
+        connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='8';");
+       // if ()
     });
     bot.on('notlcmd', (username) => {
-        console.log('true');
+        connection.query("UPDATE currentmap SET Value = 'No time limit' WHERE id='4';");
     });
     bot.on('alexacmd', (username, message) => {
-        if (message.includes('prediction') == true && cd.fire())
+        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox"))
         {
             connection.query(
                 "SELECT Value FROM currentmap WHERE id='7'",
                 function(err, result, fields) {
-                    bot.chat('/g The prediction of the match: ' + result[0]['Value'] + ' will win.');
+                    bot.chat('The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
                 }
             );
         }
-        else if (message.includes('despacito') == true && cd.fire())
-            bot.chat('/g ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
+        else if (message.includes('despacito') == true && (cd.fire() || username == "unixfox"))
+            bot.chat('ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
+    });
+    bot.on('playerJoined', (player) => {
+        if (player.username !== bot.username) {
+            if (bot.players[player.username].ping == 0)
+            {
+                getJSON('https://mcleaks.themrgong.xyz/api/v3/isnamemcleaks/' + player.username, function(error, response){
+                    if (response.isMcleaks == true)
+                    {
+                        bot.chat('Watchout! ' + player.username + ' is a compromised account from MCLeaks. He can harm the players.');
+                        bot.chat('/msg unixfox mcleaks account detected: ' + player.username);
+                    }
+                });
+            }
+        }
     });
     bot.on('shotblocks', (username, message) => {
         connection.query(
@@ -344,19 +365,24 @@ function getinfo(bot) {
 
 function factsday(bot)
 {
-    bot.chat('It\'s midnight (UTC), it\'s time for the facts of the day everyone!');
-    connection.query(
-        "SELECT Value FROM facts WHERE id IN ('1','2','3')",
-        function(err, result, fields) {
-            totalSeconds = result[0]['Value'];
-            hours = Math.floor(totalSeconds / 3600);
-            totalSeconds %= 3600;
-            minutes = Math.floor(totalSeconds / 60);
-            seconds = totalSeconds % 60;
-            bot.chat('The length of today\'s longest match was ' + hours + " hour(s), " + minutes + " minute(s) and " + seconds + " second(s)" + "!");
-            bot.chat('The longest shot of the day is awarded to ' + result[2]['Value'] + " with " + result[1]['Value'] + " blocks!");
-        }
-    );
+    bot.chat('/g It\'s midnight (UTC), it\'s time for the facts of the last 24 hours everyone!');
+    setTimeout(function () {
+        connection.query(
+            "SELECT Value FROM facts WHERE id IN ('1','2','3')",
+            function(err, result, fields) {
+                totalSeconds = Number(result[0]['Value']);
+                hours = Math.floor(totalSeconds / 3600);
+                totalSeconds %= 3600;
+                minutes = Math.floor(totalSeconds / 60);
+                seconds = totalSeconds % 60;
+                if (hours == 0)
+                    bot.chat('/g The length of the last 24 hours longest match was ' + minutes + " minute(s) and " + seconds + " second(s)" + "!");
+                else
+                    bot.chat('/g The length of the last 24 hours longest match was ' + hours + " hour(s), " + minutes + " minute(s) and " + seconds + " second(s)" + "!");
+                bot.chat('/g The longest shot of the last 24 hours is awarded to ' + result[2]['Value'] + " with " + result[1]['Value'] + " blocks!");
+            }
+        );
+    }, 5000);
 }
 
 var recursiveAsyncReadLine = function (bot, rl) {
