@@ -3,7 +3,6 @@ var tokens = require('prismarine-tokens')
 var readline = require('readline');
 var fs = require('fs');
 const mysql = require('mysql2');
-var getJSON = require('get-json');
 var Cooldown = require('cooldown');
 var request = require('request');
 var libxmljs = require("libxmljs");
