@@ -137,18 +137,6 @@ function connect(bot) {
         else if (message.includes('despacito') == true && (cd.fire() || username == "unixfox"))
             bot.chat('ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
     });
-    bot.on('playerJoined', (player) => {
-        if (player.username !== bot.username) {
-            if (bot.players[player.username].ping == 0) {
-                getJSON('https://mcleaks.themrgong.xyz/api/v3/isnamemcleaks/' + player.username, function (error, response) {
-                    if (response.isMcleaks == true) {
-                        bot.chat('Watchout! ' + player.username + ' is a compromised account from MCLeaks. He can harm the players.');
-                        bot.chat('/msg unixfox mcleaks account detected: ' + player.username);
-                    }
-                });
-            }
-        }
-    });
     bot.on('shotblocks', (username, message) => {
         connection.query(
             "SELECT Value FROM facts WHERE id='2'",
