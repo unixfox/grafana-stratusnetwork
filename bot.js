@@ -176,7 +176,7 @@ function connect(bot) {
             body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
         }, function (error, response, body) {
             if (!error && response.statusCode == 200)
-                bot.chat(libxmljs.parseXml(body).get('//response').text());
+                bot.chat('username' + libxmljs.parseXml(body).get('//response').text());
         });
     });
     bot.on('cleverg', (username, message) => {
@@ -189,7 +189,7 @@ function connect(bot) {
             body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
         }, function (error, response, body) {
             if (!error && response.statusCode == 200)
-                bot.chat(libxmljs.parseXml(body).get('//response').text());
+                bot.chat('username' + libxmljs.parseXml(body).get('//response').text());
         });
     });
     bot.on('chat', (username, message) => {
