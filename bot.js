@@ -178,7 +178,7 @@ function connect(bot) {
             if (!error && response.statusCode == 200)
             {
                 var datetime = new Date();
-                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + response + '\r\n');
+                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
                 bot.chat(username + ' ' + libxmljs.parseXml(body).get('//response').text());
             }
         });
@@ -195,7 +195,7 @@ function connect(bot) {
             if (!error && response.statusCode == 200)
             {
                 var datetime = new Date();
-                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + response + '\r\n');
+                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
                 bot.chat('/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
             }
         });
