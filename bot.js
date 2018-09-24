@@ -2,11 +2,11 @@ var mineflayer = require('mineflayer')
 var tokens = require('prismarine-tokens')
 var readline = require('readline');
 var fs = require('fs');
-var cleverbot = require("cleverbot.io");
-cbot = new cleverbot(process.env.cleverAPIUser, process.env.cleverAPIKey);
 const mysql = require('mysql2');
 var getJSON = require('get-json');
 var Cooldown = require('cooldown');
+var request = require('request');
+var libxmljs = require("libxmljs");
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
@@ -120,17 +120,16 @@ function connect(bot) {
     });
     bot.on('playerscmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='8';");
-       // if ()
+        // if ()
     });
     bot.on('notlcmd', (username) => {
         connection.query("UPDATE currentmap SET Value = 'No time limit' WHERE id='4';");
     });
     bot.on('alexacmd', (username, message) => {
-        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox"))
-        {
+        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
             connection.query(
                 "SELECT Value FROM currentmap WHERE id='7'",
-                function(err, result, fields) {
+                function (err, result, fields) {
                     bot.chat('The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
                 }
             );
@@ -140,11 +139,9 @@ function connect(bot) {
     });
     bot.on('playerJoined', (player) => {
         if (player.username !== bot.username) {
-            if (bot.players[player.username].ping == 0)
-            {
-                getJSON('https://mcleaks.themrgong.xyz/api/v3/isnamemcleaks/' + player.username, function(error, response){
-                    if (response.isMcleaks == true)
-                    {
+            if (bot.players[player.username].ping == 0) {
+                getJSON('https://mcleaks.themrgong.xyz/api/v3/isnamemcleaks/' + player.username, function (error, response) {
+                    if (response.isMcleaks == true) {
                         bot.chat('Watchout! ' + player.username + ' is a compromised account from MCLeaks. He can harm the players.');
                         bot.chat('/msg unixfox mcleaks account detected: ' + player.username);
                     }
@@ -155,9 +152,8 @@ function connect(bot) {
     bot.on('shotblocks', (username, message) => {
         connection.query(
             "SELECT Value FROM facts WHERE id='2'",
-            function(err, result, fields) {
-                if (Number(message) > Number(result[0]['Value']))
-                {
+            function (err, result, fields) {
+                if (Number(message) > Number(result[0]['Value'])) {
                     connection.query(
                         "UPDATE `facts` SET `value`='" + message + "' WHERE  `id`=2;"
                     );
@@ -187,26 +183,26 @@ function connect(bot) {
         if (username === bot.username) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
-        cbot.setNick(username);
-        cbot.create(function (err, session) {
-            cbot.ask(message, function (err, response) {
-                var datetime = new Date();
-                bot.chat(username + ' ' + response);
-                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + response + '\r\n');
-            });
+        request.post({
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
+            body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
+        }, function (error, response, body) {
+            if (!error && response.statusCode == 200)
+                bot.chat(libxmljs.parseXml(body).get('//response').text());
         });
     });
     bot.on('cleverg', (username, message) => {
         if (username === bot.username) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
-        cbot.setNick(username);
-        cbot.create(function (err, session) {
-            cbot.ask(message, function (err, response) {
-                var datetime = new Date();
-                bot.chat('/g ' + username + ' ' + response);
-                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + response + '\r\n');
-            });
+        request.post({
+            headers: { 'content-type': 'application/x-www-form-urlencoded' },
+            url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
+            body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
+        }, function (error, response, body) {
+            if (!error && response.statusCode == 200)
+                bot.chat(libxmljs.parseXml(body).get('//response').text());
         });
     });
     bot.on('chat', (username, message) => {
@@ -217,8 +213,7 @@ function connect(bot) {
             bot.chat('/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
             setTimeout(function () { bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
         }
-        else if (!message.match(/^unixbox (.*)$/))
-        {
+        else if (!message.match(/^unixbox (.*)$/)) {
             fs.readFile('ignore', 'utf8', function (err, data) {
                 if (err) throw err;
                 if (data.includes(username) == false) {
@@ -341,9 +336,8 @@ function connect(bot) {
             bot.once('lengthmatch', (username) => {
                 connection.query(
                     "SELECT Value FROM facts WHERE id='1'",
-                    function(err, result, fields) {
-                        if (Number(hmsToSecondsOnly(username)) > Number(result[0]['Value']))
-                        {
+                    function (err, result, fields) {
+                        if (Number(hmsToSecondsOnly(username)) > Number(result[0]['Value'])) {
                             connection.query(
                                 "UPDATE `facts` SET `value`='" + hmsToSecondsOnly(username) + "' WHERE  `id`=1;"
                             );
@@ -363,13 +357,12 @@ function getinfo(bot) {
     bot.chat('/rot'); bot.chat('/tl'); bot.chat('/servers'); bot.chat('/next');
 }
 
-function factsday(bot)
-{
+function factsday(bot) {
     bot.chat('/g It\'s midnight (UTC), it\'s time for the facts of the last 24 hours everyone!');
     setTimeout(function () {
         connection.query(
             "SELECT Value FROM facts WHERE id IN ('1','2','3')",
-            function(err, result, fields) {
+            function (err, result, fields) {
                 totalSeconds = Number(result[0]['Value']);
                 hours = Math.floor(totalSeconds / 3600);
                 totalSeconds %= 3600;
