@@ -6,10 +6,18 @@ const mysql = require('mysql2');
 var Cooldown = require('cooldown');
 var request = require('request');
 var libxmljs = require("libxmljs");
+var Pusher = require('pusher');
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
 
+var pusher = new Pusher({
+    appId: '607142',
+    key: 'c07cc5767c749dddb0b3',
+    secret: process.env.pusher,
+    cluster: 'eu',
+    encrypted: true
+});
 
 var options = {
     host: process.argv[2],
@@ -324,6 +332,9 @@ function connect(bot) {
     });
     bot.on('title', (text) => {
         if (text.includes('wins!') == true) {
+            pusher.trigger('stratusgraphchannel', 'endmatch', {
+                "message": "end"
+            });
             var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
             var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
             setTimeout(function () { bot.chat(randomsentense); }, 3000);
