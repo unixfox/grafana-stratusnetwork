@@ -98,8 +98,8 @@ function relog() {
 }
 
 function connect(bot) {
-    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: unixbox (.*)$/, 'cleverg', 'Cleverbot Global');
-    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): unixbox (.*)$/, 'clevert', 'Cleverbot Team');
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (?:unixbox (.+)|(.+) unixbox)$/, 'cleverg', 'Cleverbot Global');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\]|[\W])?([\w_]+): (?:unixbox (.+)|(.+) unixbox)$/, 'clevert', 'Cleverbot Team');
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'chat global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'chat team');
     bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
@@ -174,7 +174,7 @@ function connect(bot) {
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
     });
-    bot.on('clevert', (username, message) => {
+    bot.on('clevert', (username, match1, message = match1) => {
         if (username === bot.username) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
@@ -191,7 +191,7 @@ function connect(bot) {
             }
         });
     });
-    bot.on('cleverg', (username, message) => {
+    bot.on('cleverg', (username, match1, message = match1) => {
         if (username === bot.username) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
@@ -210,13 +210,13 @@ function connect(bot) {
     });
     bot.on('chat', (username, message) => {
         if (username === bot.username) return
-        if (message.includes('unixbox') == true && !message.match(/^unixbox (.*)$/)) {
+        if (message.match(/(?:.*) unixbox (?:.*)/)) {
             var datetime = new Date();
             fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' mentioned me in the chat: ' + message + '\r\n');
             bot.chat('/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
             setTimeout(function () { bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
         }
-        else if (!message.match(/^unixbox (.*)$/)) {
+        else if (!message.includes('unixbox')) {
             fs.readFile('ignore', 'utf8', function (err, data) {
                 if (err) throw err;
                 if (data.includes(username) == false) {
