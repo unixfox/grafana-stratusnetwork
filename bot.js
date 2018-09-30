@@ -7,6 +7,7 @@ var Cooldown = require('cooldown');
 var request = require('request');
 var libxmljs = require("libxmljs");
 var Pusher = require('pusher');
+var JefNode = require('json-easy-filter').JefNode;
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
@@ -261,8 +262,27 @@ function connect(bot) {
             });
         }
     });
+    //bot._client.on('boss_bar', (packet) => {
+    //    console.log(packet);
+    //});
+    bot._client.on('teams', (packet) => {
+        new JefNode(packet).filter(function(node) {
+            if (node.has('friendlyFire') && node.value.friendlyFire == 2 && node.value.mode == 0) {
+                console.log(node.value);
+                console.log('----------------------------------------------');
+            }
+        });
+    });
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
+        /* var res = new JefNode(bot.players).filter(function(node) {
+            if (node.has('ping') && node.value.ping < 9999) {
+                return node.value.username;
+            }
+        });
+        console.log(res); */
+        //console.log(bot.players['unixfox'].entity);
+        //console.log(bot._client.players);
         if (username == "unixfox") {
             switch (message) {
                 case 'forward':
