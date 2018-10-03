@@ -157,6 +157,8 @@ function connect(bot) {
             bot.chat('ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
     });
     bot.on('shotblocks', (username, message) => {
+        if (Number(message) > 100)
+            bot.chat('/g Holy shot! What a long shot ' + username + " (" + message + " blocks)!");
         connection.query(
             "SELECT Value FROM facts WHERE id='2'",
             function (err, result, fields) {
@@ -166,6 +168,19 @@ function connect(bot) {
                     );
                     connection.query(
                         "UPDATE `facts` SET `value`='" + username + "' WHERE  `id`=3;"
+                    );
+                }
+            }
+        );
+        connection.query(
+            "SELECT Value FROM matchfacts WHERE id='1'",
+            function (err, result, fields) {
+                if (Number(message) > Number(result[0]['Value'])) {
+                    connection.query(
+                        "UPDATE `matchfacts` SET `value`='" + message + "' WHERE  `id`=1;"
+                    );
+                    connection.query(
+                        "UPDATE `matchfacts` SET `value`='" + username + "' WHERE  `id`=2;"
                     );
                 }
             }
@@ -384,15 +399,21 @@ function connect(bot) {
     });
     bot.on('title', (text) => {
         if (text.includes('wins!') == true) {
-            console.log(text);
-            console.log(JSON.parse(text).extra[0].extra[0].extra[0].text);
             connection.query("UPDATE currentmap SET Value = '" + JSON.parse(text).extra[0].extra[0].extra[0].text + "' WHERE id='7';");
             pusher.trigger('stratusgraphchannel', 'endmatch', {
                 "message": "end"
             });
             var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
             var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
-            setTimeout(function () { bot.chat(randomsentense); }, 3000);
+            connection.query(
+                "SELECT Value FROM matchfacts WHERE id IN ('1','2')",
+                function (err, result, fields) {
+                    setTimeout(function () {
+                        bot.chat(randomsentense + " Best shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
+                        connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
+                    }, 3000);
+                }
+            );
             bot.chat('/match');
             bot.once('lengthmatch', (username) => {
                 connection.query(
