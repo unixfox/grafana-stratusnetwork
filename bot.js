@@ -8,6 +8,7 @@ var request = require('request');
 var libxmljs = require("libxmljs");
 var Pusher = require('pusher');
 var JefNode = require('json-easy-filter').JefNode;
+var yaml = require('js-yaml');
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
@@ -98,6 +99,18 @@ function relog() {
     countreconnect++;
 }
 
+function updateRotation(rotationName) {
+    request.get('https://github.com/StratusNetwork/data/raw/master/rotations/beta/' + rotationName.toLowerCase() + '.yml', function (error, response, body) {
+        if (!error && response.statusCode == 200) {
+            connection.query('TRUNCATE currentrot;');
+            var rotation = yaml.safeLoad(body);
+            rotation.maps.forEach(function (value) {
+                connection.query('INSERT INTO currentrot (map_name) VALUES (\"' + value + '\");');
+            });
+        }
+    });
+}
+
 function connect(bot) {
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (?:unixbox (.+)|(.+) unixbox)$/, 'cleverg', 'Cleverbot Global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (?:unixbox (.+)|(.+) unixbox)$/, 'clevert', 'Cleverbot Team');
@@ -115,9 +128,11 @@ function connect(bot) {
 
     bot.on('rotationchange', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='6';");
+        updateRotation(username);
     });
     bot.on('rotcmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='6';");
+        updateRotation(username);
     });
     bot.on('tlcmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='4';");
@@ -128,7 +143,7 @@ function connect(bot) {
     bot.on('playerscmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='8';");
     });
-    setInterval(function(){ bot.chat('/servers'); }, 5000);
+    setInterval(function () { bot.chat('/servers'); }, 5000);
     bot.on('alexacmd', (username, message) => {
         if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
             connection.query(
@@ -165,21 +180,21 @@ function connect(bot) {
     });
     bot.on('spawn', () => {
         connection.query('UPDATE currentmap SET Value = "' + "Default" + '" WHERE id="6";');
+        updateRotation('default');
         bot.chat('/server mixed');
     });
     bot.on('respawn', () => {
-        connection.query("UPDATE currentmap SET Value = '" + "No time limit" + "' WHERE `id` IN ('4','10');");
+        connection.query("UPDATE currentmap SET Value = '" + "No time limit" + "' WHERE `id` IN ('3','4');");
         bot.chat('/server mixed'); bot.chat('/rot'); bot.chat('/tl'); bot.chat('/next');
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
         bot._client.once('playerlist_header', (packet) => {
             if (JSON.parse(packet.header).extra[0].color)
-                connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + "' WHERE id='1';");
-            else
-            {
+                connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
+            else {
                 bot._client.once('playerlist_header', (packet) => {
                     if (JSON.parse(packet.header).extra[0].color)
-                        connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + "' WHERE id='1';");
+                        connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
                 });
             }
         });
@@ -193,8 +208,7 @@ function connect(bot) {
             url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
             body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
         }, function (error, response, body) {
-            if (!error && response.statusCode == 200)
-            {
+            if (!error && response.statusCode == 200) {
                 var datetime = new Date();
                 fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
                 bot.chat(username + ' ' + libxmljs.parseXml(body).get('//response').text());
@@ -210,8 +224,7 @@ function connect(bot) {
             url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
             body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
         }, function (error, response, body) {
-            if (!error && response.statusCode == 200)
-            {
+            if (!error && response.statusCode == 200) {
                 var datetime = new Date();
                 fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
                 bot.chat('/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
@@ -274,11 +287,15 @@ function connect(bot) {
     bot._client.on('boss_bar', (packet) => {
         if (packet.health < 1)
             if (JSON.parse(packet.title).extra[0].extra[0].extra[0].text.includes('Remaining'))
-                connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.title).extra[0].extra[0].extra[1].extra[0].text + "' WHERE id='10';");  
+                connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.title).extra[0].extra[0].extra[1].extra[0].text + "' WHERE id='3';");
     });
     bot._client.on('playerlist_header', (packet) => {
         if (JSON.parse(packet.header).extra[0].color)
+        {
+            if (JSON.parse(packet.footer).extra[0].extra[3].extra[0].text == "00:00")
+                connection.query("UPDATE currentmap SET Value = 'Computing...' WHERE id=7;");
             connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.footer).extra[0].extra[3].extra[0].text + "' WHERE id='2';");
+        }
     });
     /* bot._client.on('teams', (packet) => {
         new JefNode(packet).filter(function(node) {
@@ -366,7 +383,9 @@ function connect(bot) {
         }
     });
     bot.on('title', (text) => {
+        console.log(text);
         if (text.includes('wins!') == true) {
+            connection.query("UPDATE currentmap SET Value = '" + text.extra[0].extra[0].extra[0].text + "' WHERE id='7';");
             pusher.trigger('stratusgraphchannel', 'endmatch', {
                 "message": "end"
             });
