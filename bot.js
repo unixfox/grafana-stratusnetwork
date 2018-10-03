@@ -128,6 +128,7 @@ function connect(bot) {
     bot.on('playerscmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='8';");
     });
+    setInterval(function(){ bot.chat('/servers'); }, 5000);
     bot.on('alexacmd', (username, message) => {
         if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
             connection.query(
