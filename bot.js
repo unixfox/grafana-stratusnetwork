@@ -409,7 +409,8 @@ function connect(bot) {
                 "SELECT Value FROM matchfacts WHERE id IN ('1','2')",
                 function (err, result, fields) {
                     setTimeout(function () {
-                        bot.chat(randomsentense + " Best shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
+                        if (Number(result[0]['Value']) > 0)
+                            bot.chat(randomsentense + " Best shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
                         connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                     }, 3000);
                 }
