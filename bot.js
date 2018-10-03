@@ -106,8 +106,7 @@ function connect(bot) {
     bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
     bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
     bot.chatAddPattern(/The time limit is (.+) with the result(?:.*?)/, 'tlcmd', 'Time limit');
-    bot.chatAddPattern(/There is no time limit$/, 'notlcmd', 'No time limit');
-    bot.chatAddPattern(/Next map: ([^ ]*)/, 'nextmapcmd', 'Next map');
+    bot.chatAddPattern(/Next map: ([\w\d' :]+) by/, 'nextmapcmd', 'Next map');
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Players playing on Mixed');
     bot.chatAddPattern(/(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'shot kill');
     bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
@@ -115,23 +114,19 @@ function connect(bot) {
     bot.chatAddPattern(/Current: ([\w]+)$/, 'rotationchange', 'rotation change');
 
     bot.on('rotationchange', (username) => {
-        console.log(username);
+        connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='6';");
     });
     bot.on('rotcmd', (username) => {
-        console.log(username);
+        connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='6';");
     });
     bot.on('tlcmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='4';");
     });
     bot.on('nextmapcmd', (username) => {
-        connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='5';");
+        connection.query('UPDATE currentmap SET Value = "' + username + '" WHERE id="5";');
     });
     bot.on('playerscmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='8';");
-        // if ()
-    });
-    bot.on('notlcmd', (username) => {
-        connection.query("UPDATE currentmap SET Value = 'No time limit' WHERE id='4';");
     });
     bot.on('alexacmd', (username, message) => {
         if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
@@ -168,12 +163,25 @@ function connect(bot) {
         fs.appendFile('log', text);
     });
     bot.on('spawn', () => {
+        connection.query('UPDATE currentmap SET Value = "' + "Default" + '" WHERE id="6";');
         bot.chat('/server mixed');
     });
     bot.on('respawn', () => {
-        bot.chat('/server mixed');
+        connection.query("UPDATE currentmap SET Value = '" + "No time limit" + "' WHERE `id` IN ('4','10');");
+        bot.chat('/server mixed'); bot.chat('/rot'); bot.chat('/tl'); bot.chat('/next');
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
+        bot._client.once('playerlist_header', (packet) => {
+            if (JSON.parse(packet.header).extra[0].color)
+                connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + "' WHERE id='1';");
+            else
+            {
+                bot._client.once('playerlist_header', (packet) => {
+                    if (JSON.parse(packet.header).extra[0].color)
+                        connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + "' WHERE id='1';");
+                });
+            }
+        });
     });
     bot.on('clevert', (username, match1, message = match1) => {
         if (username === bot.username) return
@@ -262,17 +270,23 @@ function connect(bot) {
             });
         }
     });
-    //bot._client.on('boss_bar', (packet) => {
-    //    console.log(packet);
-    //});
-    bot._client.on('teams', (packet) => {
+    bot._client.on('boss_bar', (packet) => {
+        if (packet.health < 1)
+            if (JSON.parse(packet.title).extra[0].extra[0].extra[0].text.includes('Remaining'))
+                connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.title).extra[0].extra[0].extra[1].extra[0].text + "' WHERE id='10';");  
+    });
+    bot._client.on('playerlist_header', (packet) => {
+        if (JSON.parse(packet.header).extra[0].color)
+            connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.footer).extra[0].extra[3].extra[0].text + "' WHERE id='2';");
+    });
+    /* bot._client.on('teams', (packet) => {
         new JefNode(packet).filter(function(node) {
             if (node.has('friendlyFire') && node.value.friendlyFire == 2 && node.value.mode == 0) {
                 console.log(node.value);
                 console.log('----------------------------------------------');
             }
         });
-    });
+    }); */
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
         /* var res = new JefNode(bot.players).filter(function(node) {
