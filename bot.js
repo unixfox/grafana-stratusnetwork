@@ -158,7 +158,7 @@ function connect(bot) {
     });
     bot.on('shotblocks', (username, message) => {
         if (Number(message) > 100)
-            bot.chat('/g Holy shot! What a long shot ' + username + " (" + message + " blocks)!");
+            bot.chat('/g Holy shot! What a lovely long shot ' + username + " (" + message + " blocks)!");
         connection.query(
             "SELECT Value FROM facts WHERE id='2'",
             function (err, result, fields) {
