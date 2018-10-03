@@ -383,9 +383,10 @@ function connect(bot) {
         }
     });
     bot.on('title', (text) => {
-        console.log(text);
         if (text.includes('wins!') == true) {
-            connection.query("UPDATE currentmap SET Value = '" + text.extra[0].extra[0].extra[0].text + "' WHERE id='7';");
+            console.log(text);
+            console.log(JSON.parse(text).extra[0].extra[0].extra[0].text);
+            connection.query("UPDATE currentmap SET Value = '" + JSON.parse(text).extra[0].extra[0].extra[0].text + "' WHERE id='7';");
             pusher.trigger('stratusgraphchannel', 'endmatch', {
                 "message": "end"
             });
