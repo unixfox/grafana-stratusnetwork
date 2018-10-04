@@ -111,6 +111,14 @@ function updateRotation(rotationName) {
     });
 }
 
+function sendToChat(bot, message)
+{
+    if (process.env.dev)
+        console.log("CHATLOG: " + message);
+    else
+        bot.chat(message);
+}
+
 function connect(bot) {
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (?:unixbox (.+)|(.+) unixbox)$/, 'cleverg', 'Cleverbot Global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (?:unixbox (.+)|(.+) unixbox)$/, 'clevert', 'Cleverbot Team');
@@ -149,16 +157,16 @@ function connect(bot) {
             connection.query(
                 "SELECT Value FROM currentmap WHERE id='7'",
                 function (err, result, fields) {
-                    bot.chat('The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
+                    sendToChat(bot, 'The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
                 }
             );
         }
         else if (message.includes('despacito') == true && (cd.fire() || username == "unixfox"))
-            bot.chat('ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
+            sendToChat(bot, 'ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
     });
     bot.on('shotblocks', (username, message) => {
         if (Number(message) > 100)
-            bot.chat('/g Holy shot! What a lovely long shot ' + username + " (" + message + " blocks)!");
+            sendToChat(bot, '/g Holy shot! What a lovely long shot ' + username + " (" + message + " blocks)!");
         connection.query(
             "SELECT Value FROM facts WHERE id='2'",
             function (err, result, fields) {
@@ -226,7 +234,7 @@ function connect(bot) {
             if (!error && response.statusCode == 200) {
                 var datetime = new Date();
                 fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
-                bot.chat(username + ' ' + libxmljs.parseXml(body).get('//response').text());
+                sendToChat(bot, username + ' ' + libxmljs.parseXml(body).get('//response').text());
             }
         });
     });
@@ -242,7 +250,7 @@ function connect(bot) {
             if (!error && response.statusCode == 200) {
                 var datetime = new Date();
                 fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
-                bot.chat('/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
+                sendToChat(bot, '/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
             }
         });
     });
@@ -251,8 +259,8 @@ function connect(bot) {
         if (message.match(/(?:.*) unixbox (?:.*)/)) {
             var datetime = new Date();
             fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' mentioned me in the chat: ' + message + '\r\n');
-            bot.chat('/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
-            setTimeout(function () { bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
+            sendToChat(bot, '/msg ' + username + ' Hi! I\'m a bot! I noticed that you mentioned me in the chat.');
+            setTimeout(function () { sendToChat(bot, '/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
         }
         else if (!message.includes('unixbox')) {
             fs.readFile('ignore', 'utf8', function (err, data) {
@@ -312,14 +320,15 @@ function connect(bot) {
             connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.footer).extra[0].extra[3].extra[0].text + "' WHERE id='2';");
         }
     });
-    /* bot._client.on('teams', (packet) => {
-        new JefNode(packet).filter(function(node) {
+    bot._client.on('teams', (packet) => {
+        console.log(packet);
+        /* new JefNode(packet).filter(function(node) {
             if (node.has('friendlyFire') && node.value.friendlyFire == 2 && node.value.mode == 0) {
                 console.log(node.value);
                 console.log('----------------------------------------------');
             }
-        });
-    }); */
+        }); */
+    });
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
         /* var res = new JefNode(bot.players).filter(function(node) {
@@ -410,7 +419,7 @@ function connect(bot) {
                 function (err, result, fields) {
                     setTimeout(function () {
                         if (Number(result[0]['Value']) > 0)
-                            bot.chat(randomsentense + " Longest shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
+                            sendToChat(bot, randomsentense + " Longest shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
                         connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                     }, 3000);
                 }
