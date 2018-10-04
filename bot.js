@@ -11,6 +11,7 @@ var JefNode = require('json-easy-filter').JefNode;
 var yaml = require('js-yaml');
 var express = require("express");
 var app = express();
+var schedule = require('node-schedule');
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
@@ -160,6 +161,10 @@ function connect(bot, teams) {
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
     bot.chatAddPattern(/Current: ([\w]+)$/, 'rotationchange', 'rotation change');
 
+    var cron = schedule.scheduleJob('59 23 * * *', function () {
+        factsday(bot);
+    });
+
     bot.on('rotationchange', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='6';");
         updateRotation(username);
@@ -174,10 +179,18 @@ function connect(bot, teams) {
     bot.on('nextmapcmd', (username) => {
         connection.query('UPDATE currentmap SET Value = "' + username + '" WHERE id="5";');
     });
-    bot.on('playerscmd', (username) => {
-        connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='8';");
-    });
-    setInterval(function () { bot.chat('/servers'); }, 5000);
+    setInterval(function () {
+        numberOfPlayers = 0;
+        numberOfObservers = 0;
+        Object.keys(teams).forEach(function (k) {
+            if (k != "Observers")
+                numberOfPlayers += teams[k].length;
+            else {
+                numberOfObservers += teams[k].length;
+            }
+        });
+        connection.query("UPDATE currentmap SET Value = '" + numberOfPlayers + " (" + numberOfObservers + ")' WHERE id='8';");
+    }, 5000);
     bot.on('alexacmd', (username, message) => {
         if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
             connection.query(
@@ -278,7 +291,10 @@ function connect(bot, teams) {
             if (!error && response.statusCode == 200) {
                 var datetime = new Date();
                 fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
-                sendToChat(bot, '/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
+                if (teams.Observers.includes(username) == true)
+                    sendToChat(bot, username + ' ' + libxmljs.parseXml(body).get('//response').text());
+                else
+                    sendToChat(bot, '/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
             }
         });
     });
@@ -297,7 +313,7 @@ function connect(bot, teams) {
                     bot.clearControlStates();
                     if (bot.blockAt(bot.entity.position.offset(0, -2, 0)) != null)
                         if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name)
-                            if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false)
+                            if ((bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false) && teams.Observers.includes(username) == false)
                                 bot.chat('/tp ' + username);
                     bot.activateItem();
                     bot.setControlState('forward', true);
@@ -452,7 +468,7 @@ function connect(bot, teams) {
                 function (err, result, fields) {
                     setTimeout(function () {
                         if (Number(result[0]['Value']) > 0)
-                            sendToChat(bot, randomsentense + " Longest shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
+                            sendToChat(bot, randomsentense + " Longest kill shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
                         else
                             sendToChat(bot, randomsentense);
                         connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
@@ -500,6 +516,7 @@ function factsday(bot) {
                 else
                     bot.chat('/g The length of the last 24 hours longest match was ' + hours + " hour(s), " + minutes + " minute(s) and " + seconds + " second(s)" + "!");
                 bot.chat('/g The longest shot of the last 24 hours is awarded to ' + result[2]['Value'] + " with " + result[1]['Value'] + " blocks!");
+                connection.query("UPDATE facts SET value = '1';");
             }
         );
     }, 5000);
