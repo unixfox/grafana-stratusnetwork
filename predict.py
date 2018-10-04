@@ -8,11 +8,12 @@
 # START CONFIG
 
 TITLE_TEXT = "Stratus Stat Utilities"
-VERSION = "1.1"
+VERSION = "1.2"
 MULTITHREADED = True
 MIRROR = "https://stats.seth-phillips.com/stratus/"
 DELAY = 15
 HEADLESS_MODE = True
+REALTIME_MODE = True
 
 # END CONFIG
 
@@ -43,6 +44,7 @@ mycursor = mydb.cursor()
 import _thread
 import ctypes
 import glob
+import json
 import math
 import random
 import re
@@ -109,7 +111,7 @@ def curlRequest(url, forceNoMirror = False):
 	try:
 		buffer = BytesIO()
 		c = pycurl.Curl()
-		c.setopt(pycurl.URL, (("https://stratus.network/" if MIRROR=="" or forceNoMirror else MIRROR) + str(url)))
+		c.setopt(pycurl.URL, (url if "://" in url else (("https://stratus.network/" if MIRROR=="" or forceNoMirror else MIRROR) + str(url))))
 		c.setopt(pycurl.USERAGENT, ("Mozilla/5.0 (X11; Linux i586; rv:31.0) Gecko/20100101 Firefox/31.0" if UNIX else "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:31.0) Gecko/20130401 Firefox/31.0"))
 		c.setopt(pycurl.FOLLOWLOCATION, True)
 		c.setopt(pycurl.POST, 0)
@@ -400,6 +402,17 @@ def listStaff():
 	for member in staff:
 		print(" - %s" % member)
 
+def getCurrentPlayers():
+	teamsPage = curlRequest("https://stratusapi.unixfox.eu/teams")
+	if teamsPage[0] > 399:
+		logHeadless("[*] Error making request!");
+		print("[*] cURL responded with a server error while requesting the main match page (%i). Is unixfox's Stratus API down?" % teamsPage[0])
+		exit()
+	teams = json.loads(teamsPage[1])
+	if "Observers" in teams:
+		teams.pop("Observers", None)
+	return teams
+
 def getLatestMatch():
 	matchPage = curlRequest("matches/?force-renew")
 	if matchPage[0] > 399:
@@ -430,8 +443,11 @@ def winPredictor(match = "", cycleStart = ""):
 		print(loadMessage())
 	
 	if match.replace(' ', '')=="":
+		latestMatch = True
 		logHeadless("Getting list of matches...");
 		match = str(getLatestMatch())
+	else:
+		latestMatch = False
 	
 	logHeadless("Getting match info (%s)..." % match);
 	matchPage = curlRequest("matches/" + match + "?force-renew")
@@ -449,7 +465,7 @@ def winPredictor(match = "", cycleStart = ""):
 	if mapType in ["tdm", "ctw", "ctf", "dtc", "dtm", "dtcm", "koth", "blitz", "rage", "ffa", "mixed"] or HEADLESS_MODE:
 		mapExists = True
 	else:
-		if(mapType=="" or mapType=="map.png" or mapType[:7]=="map.png"):
+		if mapType=="" or mapType=="map.png" or mapType[:7]=="map.png":
 			print("The match is missing its map.png file and therefore the gamemode cannot be determined!")
 		else:
 			print("The requested match type (\"%s\") is not a supported gamemode!" % mapType)
@@ -466,18 +482,28 @@ def winPredictor(match = "", cycleStart = ""):
 				print("Please specify a \"yes\" or \"no\":")
 	
 	if mapExists:
-		teamRow = matchPage.findAll("div", {"class": "row"})[3]
 		players = list()
 		gstats = dict()
 		composition = dict()
 		
-		for teamDiv in teamRow.findAll("div", {"class": "col-md-4"}):
-			teamCount = teamDiv.find("h4", {"class": "strong"}).find("small")
-			teamTag = teamDiv.find("h4", {"class": "strong"}).find("span", {"class": ["label label-danger pull-right", "label label-success pull-right"]})
-			team = (teamDiv.find("h4", {"class": "strong"}).text.lower())[:-((0 if teamCount is None else len(teamCount.text)) + (0 if teamTag is None else len(teamTag.text)))]
-			composition[team] = {"players": dict(), "stats": dict()}
-			for player in [x["href"][1:] for x in teamDiv.findAll("a", href=True)]:
-				composition[team]["players"][player] = dict()
+		if latestMatch or HEADLESS_MODE:
+			logHeadless("Getting the live team structure...");
+			currentPlayers = getCurrentPlayers()
+			for team in currentPlayers:
+				if team.lower() not in composition:
+					composition[team.lower()] = {"players": dict(), "stats": dict()}
+				for player in currentPlayers[team]:
+					composition[team.lower()]["players"][player] = dict()
+		else:
+			logHeadless("Using the legacy team structure...");
+			teamRow = matchPage.findAll("div", {"class": "row"})[3]		
+			for teamDiv in teamRow.findAll("div", {"class": "col-md-4"}):
+				teamCount = teamDiv.find("h4", {"class": "strong"}).find("small")
+				teamTag = teamDiv.find("h4", {"class": "strong"}).find("span", {"class": ["label label-danger pull-right", "label label-success pull-right"]})
+				team = (teamDiv.find("h4", {"class": "strong"}).text.lower())[:-((0 if teamCount is None else len(teamCount.text)) + (0 if teamTag is None else len(teamTag.text)))]
+				composition[team] = {"players": dict(), "stats": dict()}
+				for player in [x["href"][1:] for x in teamDiv.findAll("a", href=True)]:
+					composition[team]["players"][player] = dict()
 		
 		tPreFetch = time.time()
 		tEst = 0
@@ -488,7 +514,7 @@ def winPredictor(match = "", cycleStart = ""):
 				print("NOTE: You've enabled the MULTITHREADED option, which is currently developmental and needs more timing tests.") # AKA "it works on my machine"
 			with ThreadPoolExecutor(max_workers=4) as executor:
 				for team in composition:
-					print("\nGetting stats for players on %s team (%d)..." % (team, len(composition[team]["players"])))
+					print("\nGetting stats for players on %s (%d)..." % (team, len(composition[team]["players"])))
 					for player in composition[team]["players"]:
 						print("Getting stats for %s..." % player)
 						composition[team]["players"][player] = executor.submit(getPlayerStats, player, True, False)
@@ -503,11 +529,16 @@ def winPredictor(match = "", cycleStart = ""):
 			for team in composition:
 				tEstTeam = len(composition[team]["players"])*2.5
 				tEst += tEstTeam
-				print("\nGetting stats for players on %s team (%d; ETA %ds)..." % (team, len(composition[team]["players"]), math.ceil(tEstTeam)))
+				print("\nGetting stats for players on %s (%d; ETA %ds)..." % (team, len(composition[team]["players"]), math.ceil(tEstTeam)))
 				for player in composition[team]["players"]:
 					print("Getting stats for %s..." % player)
 					composition[team]["players"][player] = getPlayerStats(player, True, False)
 					players.append(player)
+		
+		for team in composition:
+			for player in list(composition[team]["players"]):
+				if not composition[team]["players"][player]["exists"]:
+					composition[team]["players"].pop(player, None)
 		
 		tPostFetch = time.time()
 		
@@ -548,7 +579,7 @@ def winPredictor(match = "", cycleStart = ""):
 		gstats["cumulative_reliability_index"] = 0
 		
 		for team in composition:
-			print("\nCalculating larger statistics for %s team..." % team)
+			print("\nCalculating larger statistics for %s..." % team)
 			
 			composition[team]["stats"]["number_of_players"] = len(composition[team]["players"])
 			composition[team]["stats"]["total_kills"] = 0
@@ -833,7 +864,7 @@ def winPredictor(match = "", cycleStart = ""):
 		
 		tPostCalc = time.time()
 		
-		if(numTeams > 0):
+		if numTeams>0:
 		
 			if not UNIX:
 				ctypes.windll.kernel32.SetConsoleTitleW(TITLE_TEXT)
@@ -867,7 +898,7 @@ def winPredictor(match = "", cycleStart = ""):
 					else:
 						output("%s: %s" % (stat.replace('_', ' ').title(), gstats[stat]))
 			
-			output(("\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n Team Statistics for Current Match \n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n") if match.replace(' ', '')=="" else ("\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n Team Statistics for %s \n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n" % match))
+			output(("\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n Team Statistics for Current Match \n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n") if latestMatch else ("\n\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n Team Statistics for %s \n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n" % match))
 			
 			tableHeaders = [x.title() for x in composition]
 			tableHeaders.insert(0, "")
@@ -971,25 +1002,31 @@ if __name__ == '__main__':
 			
 			lastMatch = ""
 			waitCycle = 30
-			while(True):
+			while True:
 				latestMatch = str(getLatestMatch())
-				waitCycle = 30
-				lastMatch = latestMatch
-					
-				if not UNIX:
-					os.system("cls")
+				if not REALTIME_MODE and latestMatch==lastMatch:
+					print("[%s] No match difference. Pinging again in %i seconds..." % (datetime.now().isoformat(), waitCycle))
+					time.sleep(waitCycle)
+					if waitCycle < 300:
+						waitCycle += 1
 				else:
-					os.system("clear")
+					waitCycle = 30
+					lastMatch = latestMatch
 					
-				print("Cycle beginning.")
-				cycleStart = datetime.now().isoformat()
-				logHeadless("Cycle start time: ", False, 'w')
-				logHeadless(cycleStart)
-				time.sleep(20 if DELAY==0 else DELAY)
-				winPredictor(lastMatch, cycleStart)
-				copyfile('output.log', 'complete_output.log')
-				print("Cycle complete. Running again in 20 seconds...")
-				time.sleep(20)
+					if not UNIX:
+						os.system("cls")
+					else:
+						os.system("clear")
+					
+					print("Cycle beginning.")
+					cycleStart = datetime.now().isoformat()
+					logHeadless("Cycle start time: ", False, 'w')
+					logHeadless(cycleStart)
+					time.sleep(20 if DELAY==0 else DELAY)
+					winPredictor(lastMatch, cycleStart)
+					copyfile('output.log', 'complete_output.log')
+					print("Cycle complete. Running again in %i seconds..." % 15 if REALTIME_MODE else 60)
+					time.sleep(15 if REALTIME_MODE else 60)
 		else:
 			main()
 	except KeyboardInterrupt:
