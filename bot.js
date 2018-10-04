@@ -145,7 +145,7 @@ function removeArray(arr) {
     return arr;
 }
 
-setTimeout(function () {
+setInterval(function () {
     mcstatus.ping('play.stratus.network', 25565, (error, result) => {
         if (error) return
         connection.query("UPDATE serverinfo SET Value = '" + result.players.online + "/" + result.players.max + "' WHERE id='1';");
