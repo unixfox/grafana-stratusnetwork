@@ -9,6 +9,8 @@ var libxmljs = require("libxmljs");
 var Pusher = require('pusher');
 var JefNode = require('json-easy-filter').JefNode;
 var yaml = require('js-yaml');
+var express = require("express");
+var app = express();
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
@@ -47,13 +49,19 @@ var rl = readline.createInterface({
 
 tokens.use(options, function (_err, _opts) {
     if (_err) throw _err;
+    var teams = {};
     var bot = mineflayer.createBot(_opts);
-    bindEvents(bot, rl);
-    connect(bot);
+    var server = app.listen((process.env.PORT || 8080), function () {
+        app.get("/teams", (req, res, next) => {
+            res.json(teams);
+        });
+    });
+    bindEvents(bot, rl, server);
+    connect(bot, teams);
     recursiveAsyncReadLine(bot, rl);
 });
 
-function bindEvents(bot, rl) {
+function bindEvents(bot, rl, server) {
 
     bot.on('error', function (err) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
@@ -65,7 +73,7 @@ function bindEvents(bot, rl) {
 
     bot.on('end', function () {
         console.log("Bot has ended");
-        rl.write('exit\n');
+        server.close();
         setTimeout(relog, 30000);
     });
 }
@@ -86,13 +94,19 @@ function relog() {
     console.log("Attempting to reconnect...");
     tokens.use(options, function (_err, _opts) {
         if (_err) throw _err;
+        var teams = {};
         var bot = mineflayer.createBot(_opts);
+        var server = app.listen((process.env.PORT || 8080), function () {
+            app.get("/teams", (req, res, next) => {
+                res.json(teams);
+            });
+        });
         var rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout
         });
-        bindEvents(bot, rl);
-        connect(bot);
+        bindEvents(bot, rl, server);
+        connect(bot, teams);
         recursiveAsyncReadLine(bot, rl);
     });
     if (countreconnect >= 20) process.exit();
@@ -111,15 +125,27 @@ function updateRotation(rotationName) {
     });
 }
 
-function sendToChat(bot, message)
-{
+function sendToChat(bot, message) {
     if (process.env.dev)
         console.log("CHATLOG: " + message);
     else
         bot.chat(message);
 }
 
-function connect(bot) {
+function removeArray(arr) {
+    var what, a = arguments, L = a.length, ax;
+    while (L > 1 && arr.length) {
+        what = a[--L];
+        while ((ax = arr.indexOf(what)) !== -1) {
+            arr.splice(ax, 1);
+        }
+    }
+    return arr;
+}
+
+
+
+function connect(bot, teams) {
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (?:unixbox (.+)|(.+) unixbox)$/, 'cleverg', 'Cleverbot Global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (?:unixbox (.+)|(.+) unixbox)$/, 'clevert', 'Cleverbot Team');
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'chat global');
@@ -212,11 +238,13 @@ function connect(bot) {
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
         bot._client.once('playerlist_header', (packet) => {
-            if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].extra[0] != "undefined")
+            if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].extra != "undefined")
                 connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
             else {
                 bot._client.once('playerlist_header', (packet) => {
-                    if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].extra[0] != "undefined")
+                    if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text != "")
+                        connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].text + '" WHERE id="1";');
+                    else if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text == "")
                         connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
                 });
             }
@@ -313,21 +341,26 @@ function connect(bot) {
                 connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.title).extra[0].extra[0].extra[1].extra[0].text + "' WHERE id='3';");
     });
     bot._client.on('playerlist_header', (packet) => {
-        if (JSON.parse(packet.header).extra[0].color)
-        {
+        if (JSON.parse(packet.header).extra[0].color) {
             if (JSON.parse(packet.footer).extra[0].extra[3].extra[0].text == "00:00")
                 connection.query("UPDATE currentmap SET Value = 'Computing...' WHERE id=7;");
             connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.footer).extra[0].extra[3].extra[0].text + "' WHERE id='2';");
         }
     });
     bot._client.on('teams', (packet) => {
-        console.log(packet);
-        /* new JefNode(packet).filter(function(node) {
-            if (node.has('friendlyFire') && node.value.friendlyFire == 2 && node.value.mode == 0) {
-                console.log(node.value);
-                console.log('----------------------------------------------');
-            }
-        }); */
+        new JefNode(packet).filter(function (node) {
+            if (node.has('team'))
+                if (node.value.team.includes('TabView') == false && node.value.team.includes('pgm') == false && node.value.team.includes('Participants') == false) {
+                    if (node.value.mode == 0)
+                        teams[node.value.team] = node.value.players;
+                    else if (node.value.mode == 1)
+                        delete teams[node.value.team];
+                    else if (node.value.mode == 3)
+                        teams[node.value.team].push(node.value.players[0]);
+                    else if (node.value.mode == 4 && Object.keys(teams).length > 0)
+                        removeArray(teams[node.value.team], node.value.players[0]);
+                }
+        });
     });
     bot.on('whisper', (username, message, rawMessage) => {
         if (username === bot.username) return
@@ -420,6 +453,8 @@ function connect(bot) {
                     setTimeout(function () {
                         if (Number(result[0]['Value']) > 0)
                             sendToChat(bot, randomsentense + " Longest shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
+                        else
+                            sendToChat(bot, randomsentense);
                         connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                     }, 3000);
                 }
@@ -472,8 +507,6 @@ function factsday(bot) {
 
 var recursiveAsyncReadLine = function (bot, rl) {
     rl.question('', function (answer) {
-        if (answer == 'exit')
-            return rl.close();
         if (answer == 'info')
             getinfo(bot);
         if (answer == 'facts')
