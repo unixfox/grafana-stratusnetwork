@@ -12,6 +12,7 @@ var yaml = require('js-yaml');
 var express = require("express");
 var app = express();
 var schedule = require('node-schedule');
+var mcstatus = require('minecraft-pinger');
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
@@ -144,7 +145,12 @@ function removeArray(arr) {
     return arr;
 }
 
-
+setTimeout(function () {
+    mcstatus.ping('play.stratus.network', 25565, (error, result) => {
+        if (error) return
+        connection.query("UPDATE serverinfo SET Value = '" + result.players.online + "/" + result.players.max + "' WHERE id='1';");
+    });
+}, 5000);
 
 function connect(bot, teams) {
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (?:unixbox (.+)|(.+) unixbox)$/, 'cleverg', 'Cleverbot Global');
@@ -189,7 +195,7 @@ function connect(bot, teams) {
                 numberOfObservers += teams[k].length;
             }
         });
-        connection.query("UPDATE currentmap SET Value = '" + numberOfPlayers + " (" + numberOfObservers + ")' WHERE id='8';");
+        connection.query("UPDATE currentmap SET Value = '" + numberOfPlayers + "(" + numberOfObservers + ")' WHERE id='8';");
     }, 5000);
     bot.on('alexacmd', (username, message) => {
         if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
