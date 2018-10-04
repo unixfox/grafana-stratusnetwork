@@ -5,22 +5,17 @@
 # Author: Seth Phillips        #
 ################################
 
-# START CONFIG
-
 TITLE_TEXT = "Stratus Stat Utilities"
 VERSION = "1.2"
 MULTITHREADED = True
 MIRROR = "https://stats.seth-phillips.com/stratus/"
 DELAY = 15
-HEADLESS_MODE = True
-REALTIME_MODE = True
-
-# END CONFIG
+HEADLESS_MODE = False
+REALTIME_MODE = False
 
 import os
 import platform
 import sys
-import mysql.connector
 if platform.system()=="Windows":
 	UNIX = False
 elif platform.system()=="Linux" or platform.system()=="Darwin":
@@ -33,15 +28,8 @@ if sys.version_info[0] < 3:
 	print("You must run this on Python 3.x")
 	exit()
 
-mydb = mysql.connector.connect(
-  host="localhost",
-  user=os.environ['mysql_user'],
-  passwd=os.environ['mysql_passwd'],
-  database="stratusgraph")
-
-mycursor = mydb.cursor()
-
 import _thread
+import argparse
 import ctypes
 import glob
 import json
@@ -55,12 +43,48 @@ from datetime import datetime
 from io import BytesIO
 from shutil import copyfile
 
+cli = argparse.ArgumentParser()
+cli.add_argument('--multithreaded', "-m", help="bool :: use multithreaded player lookups", type=bool, default=MULTITHREADED)
+cli.add_argument('--clone', "-c", help="str :: set the cURL stat URL/mirror", type=str, default=MIRROR)
+cli.add_argument('--delay', "-d", help="int :: run the win predictor after a number of seconds", type=int, default=DELAY)
+cli.add_argument('--headless', "-n", help="bool :: automatically run the program in non-interactive win predictor mode", type=bool, default=HEADLESS_MODE)
+cli.add_argument('--realtime', "-r", help="bool :: run headless mode consistently", type=bool, default=REALTIME_MODE)
+cli.add_argument('--mysql-host', help="str :: MySQL hostname", type=str, default="localhost")
+cli.add_argument('--mysql-user', help="str :: MySQL username", type=str)
+cli.add_argument('--mysql-pass', help="str :: MySQL password", type=str)
+cli.add_argument('--mysql-db', help="str :: MySQL database", type=str)
+cli.add_argument('--mysql-port', help="int :: MySQL database", type=int, default=3306)
+ARGS = cli.parse_args()
+MYSQL = ARGS.mysql_user != None and ARGS.mysql_db != None
+
 try:
 	from lxml import etree
 	import lxml.html as lh
 except ImportError:
 	print("Your system is missing lxml. Please run `easy_install lxml` or `pip install lxml` before executing.")
 	exit()
+
+if MYSQL:
+	try:
+		import mysql.connector
+	except ImportError:
+		print("Your system is missing mysql-connector. Please run `easy_install mysql-connector` or `pip install mysql-connector` before executing.")
+		exit()
+	try:
+		M_CNX = mysql.connector.connect(
+			host = ARGS.mysql_host,
+			user = ARGS.mysql_user,
+			password = ARGS.mysql_pass,
+			database = ARGS.mysql_db,
+			port = ARGS.mysql_port,
+			autocommit = True,
+			use_unicode = True,
+			charset = "utf8"
+		)
+		M_CURSOR = M_CNX.cursor()
+	except mysql.connector.Error as err:
+		print("[*] Error connecting to MySQL database with specified credentials:\n\t%s" % err)
+		exit()
 
 try:
 	import pycurl
@@ -81,14 +105,14 @@ except ImportError:
 	exit()
 
 def logHeadless(data, newLine = True, mode = 'a'):
-	global HEADLESS_MODE
-	if HEADLESS_MODE:
+	global ARGS
+	if ARGS.headless:
 		with open("output.log", mode) as f:
 			f.write(data + ('\n' if newLine else ''))
 
 def output(data):
-	global HEADLESS_MODE
-	if HEADLESS_MODE:
+	global ARGS
+	if ARGS.headless:
 		logHeadless(data)
 	else:
 		print(data)
@@ -107,11 +131,11 @@ def loadMessage():
 	return random.choice(["Searching the cloud", "Getting Stratus status", "Completing the water cycle", "Querying for snakes and goobers", "Watching the clouds"]) + "...\n"
 
 def curlRequest(url, forceNoMirror = False):
-	global UNIX, MIRROR
+	global ARGS, UNIX
 	try:
 		buffer = BytesIO()
 		c = pycurl.Curl()
-		c.setopt(pycurl.URL, (url if "://" in url else (("https://stratus.network/" if MIRROR=="" or forceNoMirror else MIRROR) + str(url))))
+		c.setopt(pycurl.URL, (url if "://" in url else (("https://stratus.network/" if ARGS.clone=="" or forceNoMirror else ARGS.clone) + str(url))))
 		c.setopt(pycurl.USERAGENT, ("Mozilla/5.0 (X11; Linux i586; rv:31.0) Gecko/20100101 Firefox/31.0" if UNIX else "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:31.0) Gecko/20130401 Firefox/31.0"))
 		c.setopt(pycurl.FOLLOWLOCATION, True)
 		c.setopt(pycurl.POST, 0)
@@ -153,6 +177,8 @@ def getPlayerStats(player, doCalculations = True, forceRenew = True):
 		
 		try:
 			# Raw stats
+			stats["uuid"] = playerPage.findAll("img", {"class": "avatar"})[0]['src'][40:76]
+			
 			data = playerPage.findAll("div", {"class": "number"})
 			if len(data) >= 7:
 				stats["kills"] = int(data[0].get_text())
@@ -173,7 +199,7 @@ def getPlayerStats(player, doCalculations = True, forceRenew = True):
 			
 			data = playerPage.findAll("h2")
 			if len(data) > 0:
-				stats["username"] = re.sub(r"\(.*\)", '', data[0].get_text()).replace(' ', '')
+				stats["username"] = BS(str(data[0]), "lxml").findAll("span")[0].get_text().replace('\n', '').replace(' ', '')
 			if len(data) > 3:
 				for matches in data:
 					subs = BS(str(matches), "lxml").findAll("small", {"class": "strong"})
@@ -188,6 +214,9 @@ def getPlayerStats(player, doCalculations = True, forceRenew = True):
 							elif sub.text.lower()=="wools placed":
 								stats["wools"] = int(re.sub("\D", "", matches.get_text()))
 								break
+							elif sub.text.lower()=="flags captured":
+								stats["flags"] = int(re.sub("\D", "", matches.get_text()))
+								break
 			if "username" not in stats:
 				stats["username"] = player
 			if "monuments" not in stats:
@@ -196,6 +225,8 @@ def getPlayerStats(player, doCalculations = True, forceRenew = True):
 				stats["wools"] = 0
 			if "cores" not in stats:
 				stats["cores"] = 0
+			if "flags" not in stats:
+				stats["flags"] = 0
 			
 			data = playerPage.findAll("section")
 			if len(data) > 0:
@@ -241,6 +272,7 @@ def getPlayerStats(player, doCalculations = True, forceRenew = True):
 				stats["average_deaths_per_hour"] = stats["deaths"] / (1 if stats["hours_played"]==0 else stats["hours_played"])
 				stats["average_monuments_per_hour"] = stats["monuments"] / (1 if stats["hours_played"]==0 else stats["hours_played"])
 				stats["average_wools_per_hour"] = stats["wools"] / (1 if stats["hours_played"]==0 else stats["hours_played"])
+				stats["average_flags_per_hour"] = stats["flags"] / (1 if stats["hours_played"]==0 else stats["hours_played"])
 				stats["average_cores_per_hour"] = stats["cores"] / (1 if stats["hours_played"]==0 else stats["hours_played"])
 				stats["average_droplets_per_hour"] = stats["droplets"] / (1 if stats["hours_played"]==0 else stats["hours_played"])
 				stats["average_new_friends_per_hour"] = stats["friends"] / (1 if stats["hours_played"]==0 else stats["hours_played"])
@@ -253,8 +285,10 @@ def getPlayerStats(player, doCalculations = True, forceRenew = True):
 				# Percents, expressed out of 100
 				stats["percent_time_spent_on_stratus"] = 0 if stats["first_joined_days_ago"] < 7 else (stats["hours_played"] * 100 / (24 if stats["first_joined_days_ago"]==0 else (stats["first_joined_days_ago"] * 24)))
 				stats["percent_waking_time_spent_on_stratus"] = 0 if stats["first_joined_days_ago"] < 7 else (stats["hours_played"] * 100 / (16 if stats["first_joined_days_ago"]==0 else (stats["first_joined_days_ago"] * 16)))
-				stats["percent_droplets_are_kills"] = stats["kills"] * 100 / (1 if stats["droplets"]==0 else stats["droplets"])
-				stats["percent_droplets_are_objectives"] = 100 - stats["percent_droplets_are_kills"]
+				
+				# Unfortunately these stats have to retire since droplets can be spent, which can result in negative objective percentages.
+				#stats["percent_droplets_are_kills"] = stats["kills"] * 100 / (1 if stats["droplets"]==0 else stats["droplets"])
+				#stats["percent_droplets_are_objectives"] = 100 - stats["percent_droplets_are_kills"]
 				
 				# Merit is based on hours played on a scale to account for veteran players that idle. Using inverse regression
 				# analysis, the above formula was found so that the stats of a user that has only played for less than an hour
@@ -422,10 +456,10 @@ def getLatestMatch():
 	return ([x["href"] for x in (BS(str((BS(matchPage[1], "lxml").findAll("tr"))[1]), "lxml").findAll("a", href=True)) if x.text][0][9:])
 
 def winPredictor(match = "", cycleStart = ""):
-	global MULTITHREADED, DELAY, HEADLESS_MODE
+	global ARGS, MYSQL, M_CNX, M_CURSOR
 	
-	if not HEADLESS_MODE:
-		if DELAY == 0:
+	if not ARGS.headless:
+		if ARGS.delay == 0:
 			print("Enter a match to lookup (leave blank for the current match):")
 			while True:
 				match = input(" > ").replace(' ', '')
@@ -434,10 +468,10 @@ def winPredictor(match = "", cycleStart = ""):
 				else:
 					print("Input must be a valid match ID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx). Try again:")
 		else:
-			print("\nWaiting %s seconds before stating...\n(Or press any key to override & stat now)\n" % DELAY)
+			print("\nWaiting %s seconds before stating...\n(Or press any key to override & stat now)\n" % ARGS.delay)
 			L = []
 			_thread.start_new_thread(lazy_input, (L,))
-			for x in range(0, DELAY*10):
+			for x in range(0, ARGS.delay*10):
 				time.sleep(.1)
 				if L: break
 		print(loadMessage())
@@ -462,7 +496,7 @@ def winPredictor(match = "", cycleStart = ""):
 	mapType = str(matchPage.find("img", {"class": "thumbnail"})).split('/')[4]
 	# tdm, ctw, ctf, dtc, dtm, (dtcm,) ad, koth, blitz, rage, scorebox, arcade, gs, ffa, mixed, survival, payload, ranked
 	
-	if mapType in ["tdm", "ctw", "ctf", "dtc", "dtm", "dtcm", "koth", "blitz", "rage", "ffa", "mixed"] or HEADLESS_MODE:
+	if mapType in ["tdm", "ctw", "ctf", "dtc", "dtm", "dtcm", "koth", "blitz", "rage", "ffa", "mixed"] or ARGS.headless:
 		mapExists = True
 	else:
 		if mapType=="" or mapType=="map.png" or mapType[:7]=="map.png":
@@ -486,7 +520,7 @@ def winPredictor(match = "", cycleStart = ""):
 		gstats = dict()
 		composition = dict()
 		
-		if latestMatch or HEADLESS_MODE:
+		if latestMatch or ARGS.headless:
 			logHeadless("Getting the live team structure...");
 			currentPlayers = getCurrentPlayers()
 			for team in currentPlayers:
@@ -509,8 +543,8 @@ def winPredictor(match = "", cycleStart = ""):
 		tEst = 0
 		
 		logHeadless("Downloading player statistics...");
-		if MULTITHREADED:
-			if not HEADLESS_MODE:
+		if ARGS.multithreaded:
+			if not ARGS.headless:
 				print("NOTE: You've enabled the MULTITHREADED option, which is currently developmental and needs more timing tests.") # AKA "it works on my machine"
 			with ThreadPoolExecutor(max_workers=4) as executor:
 				for team in composition:
@@ -558,6 +592,7 @@ def winPredictor(match = "", cycleStart = ""):
 		gstats["most_trophies"] = ["Nobody", 0]
 		
 		gstats["top_monuments_per_hour"] = ["Nobody", 0]
+		gstats["top_flags_per_hour"] = ["Nobody", 0]
 		gstats["top_wools_per_hour"] = ["Nobody", 0]
 		gstats["top_cores_per_hour"] = ["Nobody", 0]
 		gstats["top_droplets_per_hour"] = ["Nobody", 0]
@@ -587,6 +622,7 @@ def winPredictor(match = "", cycleStart = ""):
 			composition[team]["stats"]["total_friends"] = 0
 			composition[team]["stats"]["total_droplets"] = 0
 			composition[team]["stats"]["total_monuments"] = 0
+			composition[team]["stats"]["total_flags"] = 0
 			composition[team]["stats"]["total_wools"] = 0
 			composition[team]["stats"]["total_cores"] = 0
 			composition[team]["stats"]["total_staff"] = 0
@@ -600,6 +636,7 @@ def winPredictor(match = "", cycleStart = ""):
 			composition[team]["stats"]["total_average_kills_per_hour"] = 0
 			composition[team]["stats"]["total_average_deaths_per_hour"] = 0
 			composition[team]["stats"]["total_average_monuments_per_hour"] = 0
+			composition[team]["stats"]["total_average_flags_per_hour"] = 0
 			composition[team]["stats"]["total_average_wools_per_hour"] = 0
 			composition[team]["stats"]["total_average_cores_per_hour"] = 0
 			composition[team]["stats"]["total_average_droplets_per_hour"] = 0
@@ -621,8 +658,8 @@ def winPredictor(match = "", cycleStart = ""):
 			composition[team]["stats"]["nonce_total_kd_error"] = 0
 			composition[team]["stats"]["nonce_total_percent_time_spent_on_stratus"] = 0
 			composition[team]["stats"]["nonce_total_percent_waking_time_spent_on_stratus"] = 0
-			composition[team]["stats"]["nonce_total_percent_droplets_are_kills"] = 0
-			composition[team]["stats"]["nonce_total_percent_droplets_are_objectives"] = 0
+			#composition[team]["stats"]["nonce_total_percent_droplets_are_kills"] = 0
+			#composition[team]["stats"]["nonce_total_percent_droplets_are_objectives"] = 0
 			
 			for player, pstats in composition[team]["players"].items():
 				composition[team]["stats"]["total_kills"] += pstats["kills"]
@@ -631,6 +668,7 @@ def winPredictor(match = "", cycleStart = ""):
 				composition[team]["stats"]["total_droplets"] += pstats["droplets"]
 				composition[team]["stats"]["total_monuments"] += pstats["monuments"]
 				composition[team]["stats"]["total_wools"] += pstats["wools"]
+				composition[team]["stats"]["total_flags"] += pstats["flags"]
 				composition[team]["stats"]["total_cores"] += pstats["cores"]
 				composition[team]["stats"]["total_staff"] += 1 if pstats["staff"] else 0
 				composition[team]["stats"]["total_donors"] += 1 if pstats["donor"] else 0
@@ -642,6 +680,7 @@ def winPredictor(match = "", cycleStart = ""):
 				composition[team]["stats"]["total_average_kills_per_hour"] += pstats["average_kills_per_hour"]
 				composition[team]["stats"]["total_average_deaths_per_hour"] += pstats["average_deaths_per_hour"]
 				composition[team]["stats"]["total_average_monuments_per_hour"] += pstats["average_monuments_per_hour"]
+				composition[team]["stats"]["total_average_flags_per_hour"] += pstats["average_flags_per_hour"]
 				composition[team]["stats"]["total_average_wools_per_hour"] += pstats["average_wools_per_hour"]
 				composition[team]["stats"]["total_average_cores_per_hour"] += pstats["average_cores_per_hour"]
 				composition[team]["stats"]["total_average_droplets_per_hour"] += pstats["average_droplets_per_hour"]
@@ -663,8 +702,8 @@ def winPredictor(match = "", cycleStart = ""):
 				composition[team]["stats"]["nonce_total_kd_error"] += pstats["kd_error"]
 				composition[team]["stats"]["nonce_total_percent_time_spent_on_stratus"] += pstats["percent_time_spent_on_stratus"]
 				composition[team]["stats"]["nonce_total_percent_waking_time_spent_on_stratus"] += pstats["percent_waking_time_spent_on_stratus"]
-				composition[team]["stats"]["nonce_total_percent_droplets_are_kills"] += pstats["percent_droplets_are_kills"]
-				composition[team]["stats"]["nonce_total_percent_droplets_are_objectives"] += pstats["percent_droplets_are_objectives"]
+				#composition[team]["stats"]["nonce_total_percent_droplets_are_kills"] += pstats["percent_droplets_are_kills"]
+				#composition[team]["stats"]["nonce_total_percent_droplets_are_objectives"] += pstats["percent_droplets_are_objectives"]
 				
 				if pstats["kd"] > gstats["largest_kd"][1]:
 					gstats["largest_kd"][0] = pstats["username"]
@@ -712,6 +751,9 @@ def winPredictor(match = "", cycleStart = ""):
 				if pstats["average_wools_per_hour"] > gstats["top_wools_per_hour"][1]:
 					gstats["top_wools_per_hour"][0] = pstats["username"]
 					gstats["top_wools_per_hour"][1] = pstats["average_wools_per_hour"]
+				if pstats["average_flags_per_hour"] > gstats["top_flags_per_hour"][1]:
+					gstats["top_flags_per_hour"][0] = pstats["username"]
+					gstats["top_flags_per_hour"][1] = pstats["average_flags_per_hour"]
 				if pstats["average_cores_per_hour"] > gstats["top_cores_per_hour"][1]:
 					gstats["top_cores_per_hour"][0] = pstats["username"]
 					gstats["top_cores_per_hour"][1] = pstats["average_cores_per_hour"]
@@ -759,6 +801,7 @@ def winPredictor(match = "", cycleStart = ""):
 			composition[team]["stats"]["average_droplets"] = composition[team]["stats"]["total_droplets"] / teamSize
 			composition[team]["stats"]["average_username_length"] = composition[team]["stats"]["nonce_total_username_length"] / teamSize
 			composition[team]["stats"]["average_monuments"] = composition[team]["stats"]["total_monuments"] / teamSize
+			composition[team]["stats"]["average_flags"] = composition[team]["stats"]["total_flags"] / teamSize
 			composition[team]["stats"]["average_wools"] = composition[team]["stats"]["total_wools"] / teamSize
 			composition[team]["stats"]["average_cores"] = composition[team]["stats"]["total_cores"] / teamSize
 			composition[team]["stats"]["average_first_joined_days_ago"] = composition[team]["stats"]["nonce_total_first_joined_days_ago"] / teamSize
@@ -770,6 +813,7 @@ def winPredictor(match = "", cycleStart = ""):
 			composition[team]["stats"]["average_kills_per_hour"] = composition[team]["stats"]["total_average_kills_per_hour"] / teamSize
 			composition[team]["stats"]["average_deaths_per_hour"] = composition[team]["stats"]["total_average_deaths_per_hour"] / teamSize
 			composition[team]["stats"]["average_monuments_per_hour"] = composition[team]["stats"]["total_average_monuments_per_hour"] / teamSize
+			composition[team]["stats"]["average_flags_per_hour"] = composition[team]["stats"]["total_average_flags_per_hour"] / teamSize
 			composition[team]["stats"]["average_wools_per_hour"] = composition[team]["stats"]["total_average_wools_per_hour"] / teamSize
 			composition[team]["stats"]["average_cores_per_hour"] = composition[team]["stats"]["total_average_cores_per_hour"] / teamSize
 			composition[team]["stats"]["average_droplets_per_hour"] = composition[team]["stats"]["total_average_droplets_per_hour"] / teamSize
@@ -778,8 +822,8 @@ def winPredictor(match = "", cycleStart = ""):
 			composition[team]["stats"]["average_kills_per_game"] = composition[team]["stats"]["total_average_kills_per_game"] / teamSize
 			composition[team]["stats"]["average_percent_time_spent_on_stratus"] = composition[team]["stats"]["nonce_total_percent_time_spent_on_stratus"] / teamSize
 			composition[team]["stats"]["average_percent_waking_time_spent_on_stratus"] = composition[team]["stats"]["nonce_total_percent_waking_time_spent_on_stratus"] / teamSize
-			composition[team]["stats"]["average_percent_droplets_are_kills"] = composition[team]["stats"]["nonce_total_percent_droplets_are_kills"] / teamSize
-			composition[team]["stats"]["average_percent_droplets_are_objectives"] = composition[team]["stats"]["nonce_total_percent_droplets_are_objectives"] / teamSize
+			#composition[team]["stats"]["average_percent_droplets_are_kills"] = composition[team]["stats"]["nonce_total_percent_droplets_are_kills"] / teamSize
+			#composition[team]["stats"]["average_percent_droplets_are_objectives"] = composition[team]["stats"]["nonce_total_percent_droplets_are_objectives"] / teamSize
 			composition[team]["stats"]["average_time_based_merit"] = composition[team]["stats"]["nonce_total_time_based_merit"] / teamSize
 			composition[team]["stats"]["average_kill_based_merit"] = composition[team]["stats"]["nonce_total_kill_based_merit"] / teamSize
 			composition[team]["stats"]["average_merit"] = composition[team]["stats"]["nonce_total_merit"] / teamSize
@@ -791,7 +835,7 @@ def winPredictor(match = "", cycleStart = ""):
 			elif mapType == "ctw":
 				composition[team]["stats"]["raw_score"] = 0.6*composition[team]["stats"]["average_kd"] + 0.4*composition[team]["stats"]["average_wools_per_hour"]
 			elif mapType == "ctf":
-				composition[team]["stats"]["raw_score"] = composition[team]["stats"]["average_khpdg"]
+				composition[team]["stats"]["raw_score"] = 0.6*composition[team]["stats"]["average_khpdg"] + 0.4*composition[team]["stats"]["average_flags_per_hour"]
 			elif mapType == "dtc":
 				composition[team]["stats"]["raw_score"] = 0.6*composition[team]["stats"]["average_kd"] + 0.4*composition[team]["stats"]["average_cores_per_hour"]
 			elif mapType == "dtm":
@@ -932,19 +976,16 @@ def winPredictor(match = "", cycleStart = ""):
 			
 			if assuredness_index < 0.525 or gstats["average_reliability_index"] < 0.4:
 				output("\nIt's too hard to tell who will win this game due to a low player stat accuracy (%.2f%%) or a low decision accuracy (%.2f%%)." % (gstats["average_reliability_index"]*100, assuredness_index*100))
-				sql = "UPDATE currentmap SET Value = 'Too close to predict' WHERE id='7'"
-				mycursor.execute(sql)
-				mydb.commit()
+				if MYSQL:
+					M_CURSOR.execute("UPDATE currentmap SET Value = 'Too close to predict' WHERE id='7'")
 			elif assuredness_index > 0.825 and gstats["average_reliability_index"] > 0.7:
 				output("\nI am very sure that %s will win with a %.2f%% player stat accuracy and a high decision accuracy (%.2f%%)." % (winner[0].title(), gstats["average_reliability_index"]*100, assuredness_index*100))
-				sql = "UPDATE currentmap SET Value = '%s (%.2f%% accuracy)' WHERE id='7'" % (winner[0].title(), assuredness_index*100)
-				mycursor.execute(sql)
-				mydb.commit()
+				if MYSQL:
+					M_CURSOR.execute("UPDATE currentmap SET Value = '%s (%.2f%% chance)' WHERE id='7'" % (winner[0].title(), assuredness_index*100))
 			else:
 				output("\nI predict that %s will win with a %.2f%% player stat accuracy and a %.2f%% decision accuracy." % (winner[0].title(), gstats["average_reliability_index"]*100, assuredness_index*100))
-				sql = "UPDATE currentmap SET Value = '%s (%.2f%% accuracy)' WHERE id='7'" % (winner[0].title(), assuredness_index*100)
-				mycursor.execute(sql)
-				mydb.commit()
+				if MYSQL:
+					M_CURSOR.execute("UPDATE currentmap SET Value = '%s (%.2f%% chance)' WHERE id='7'" % (winner[0].title(), assuredness_index*100))
 		else:
 			output("[*] The team list is empty and therefore no stats can be found!")
 	else:
@@ -996,7 +1037,7 @@ def main():
 
 if __name__ == '__main__':
 	try:
-		if HEADLESS_MODE:
+		if ARGS.headless:
 			print("Headless mode is enabled. Events will be recorded to `output.log`. Keyboard terminate / pkill if the loop gets messy.")
 			logHeadless("", False)
 			
@@ -1004,7 +1045,7 @@ if __name__ == '__main__':
 			waitCycle = 30
 			while True:
 				latestMatch = str(getLatestMatch())
-				if not REALTIME_MODE and latestMatch==lastMatch:
+				if not ARGS.realtime and latestMatch==lastMatch:
 					print("[%s] No match difference. Pinging again in %i seconds..." % (datetime.now().isoformat(), waitCycle))
 					time.sleep(waitCycle)
 					if waitCycle < 300:
@@ -1022,11 +1063,11 @@ if __name__ == '__main__':
 					cycleStart = datetime.now().isoformat()
 					logHeadless("Cycle start time: ", False, 'w')
 					logHeadless(cycleStart)
-					time.sleep(20 if DELAY==0 else DELAY)
+					time.sleep(20 if ARGS.delay==0 else ARGS.delay)
 					winPredictor(lastMatch, cycleStart)
 					copyfile('output.log', 'complete_output.log')
-					print("Cycle complete. Running again in %i seconds..." % 15 if REALTIME_MODE else 60)
-					time.sleep(15 if REALTIME_MODE else 60)
+					print("Cycle complete. Running again in %i seconds..." % 15 if ARGS.realtime else 60)
+					time.sleep(15 if ARGS.realtime else 60)
 		else:
 			main()
 	except KeyboardInterrupt:
