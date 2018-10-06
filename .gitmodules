@@ -1,0 +1,3 @@
+[submodule "Stratus-Stat-Utilities"]
+	path = Stratus-Stat-Utilities
+	url = https://github.com/Siceth/Stratus-Stat-Utilities
