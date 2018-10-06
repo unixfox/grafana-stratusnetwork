@@ -352,6 +352,10 @@ function connect(bot, teams) {
             }
         }
     });
+    bot._client.on('game_state_change', (packet) => {
+        if (packet.reason == 3 && packet.gameMode == 0)
+            bot.chat('/join obs');
+    });
     bot._client.on('boss_bar', (packet) => {
         if (packet.health < 1)
             if (JSON.parse(packet.title).extra[0].extra[0].extra[0].text.includes('Remaining'))
