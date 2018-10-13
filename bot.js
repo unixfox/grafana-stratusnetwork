@@ -62,7 +62,12 @@ tokens.use(options, function (_err, _opts) {
         });
     });
     bindEvents(bot, rl, server);
-    connect(bot, teams);
+    try {
+        connect(bot, teams);
+    }
+    catch (err) {
+        Sentry.captureException(err);
+    }
     recursiveAsyncReadLine(bot, rl);
 });
 
@@ -111,7 +116,12 @@ function relog() {
             output: process.stdout
         });
         bindEvents(bot, rl, server);
-        connect(bot, teams);
+        try {
+            connect(bot, teams);
+        }
+        catch (err) {
+            Sentry.captureException(err);
+        }
         recursiveAsyncReadLine(bot, rl);
     });
     if (countreconnect >= 20) process.exit();
