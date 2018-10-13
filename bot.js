@@ -14,6 +14,9 @@ var app = express();
 var schedule = require('node-schedule');
 var mcstatus = require('minecraft-pinger');
 
+const Sentry = require('@sentry/node');
+Sentry.init({ dsn: process.env.SENTRY_DNS });
+
 var countreconnect = 0;
 var cd = new Cooldown(600000);
 
