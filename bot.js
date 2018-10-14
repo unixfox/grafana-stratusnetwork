@@ -13,9 +13,13 @@ var express = require("express");
 var app = express();
 var schedule = require('node-schedule');
 var mcstatus = require('minecraft-pinger');
+var stripAnsi = require('strip-ansi');
+const { parse, parseLines, stringify } = require('dot-properties');
+const namedRegExp = require('named-regexp-groups')
 
 const Sentry = require('@sentry/node');
-Sentry.init({ dsn: process.env.SENTRY_DNS });
+if (!process.env.dev)
+    Sentry.init({ dsn: process.env.SENTRY_DNS });
 
 var countreconnect = 0;
 var cd = new Cooldown(600000);
@@ -50,6 +54,12 @@ const connection = mysql.createConnection({
 var rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
+});
+
+var PGMDeathMessages;
+request.get('https://github.com/StratusNetwork/projectares/raw/master/Commons/core/src/main/i18n/templates/pgm/PGMDeath.properties', function (error, response, body) {
+    if (!error && response.statusCode == 200)
+        PGMDeathMessages = parseLines(body);
 });
 
 tokens.use(options, function (_err, _opts) {
@@ -158,6 +168,17 @@ function removeArray(arr) {
     return arr;
 }
 
+function PGMDeathMessagesMatchKill(message) {
+    for (var i = 0; j = PGMDeathMessages.length, i < j; i++) {
+        if (PGMDeathMessages[i][1] && !PGMDeathMessages[i][0].includes('#'))
+            if (!PGMDeathMessages[i][1].includes('{3}') && !PGMDeathMessages[i][1].includes('predicted')) {
+                regex = new namedRegExp(RegExp(PGMDeathMessages[i][1].replace('{0}', '(:<victimName>[\\w\\d_]+)').replace('{1}', '(:<killerName>[\\w\\d_]+)').replace('{2}', '(:<weapon>.+)').replace('{4}', '(:<distanceBlocks>[\\d]+)')));
+                if (regex.exec(message))
+                    console.log(regex.exec(message));
+            }
+    }
+}
+
 setInterval(function () {
     mcstatus.ping('play.stratus.network', 25565, (error, result) => {
         if (error) return
@@ -166,19 +187,34 @@ setInterval(function () {
 }, 5000);
 
 function connect(bot, teams) {
-    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (?:unixbox (.+)|(.+) unixbox)$/, 'cleverg', 'Cleverbot Global');
-    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (?:unixbox (.+)|(.+) unixbox)$/, 'clevert', 'Cleverbot Team');
-    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W])?([\w\d_]+)>: (.*)$/, 'chat', 'chat global');
-    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'chat', 'chat team');
-    bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)>: (?:unixbox (.+)|(.+) unixbox)$/, 'askg', 'Ask Global');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (?:unixbox (.+)|(.+) unixbox)$/, 'askg', 'Ask Team');
+    bot.chatAddPattern(/<(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)>: (.*)$/, 'chat', 'chat global');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (.*)$/, 'chat', 'chat team');
+    bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
     bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
     bot.chatAddPattern(/The time limit is (.+) with the result(?:.*?)/, 'tlcmd', 'Time limit');
     bot.chatAddPattern(/Next map: ([\w\d' :]+) by/, 'nextmapcmd', 'Next map');
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Players playing on Mixed');
     bot.chatAddPattern(/(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'shot kill');
     bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
-    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
+    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
     bot.chatAddPattern(/Current: ([\w]+)$/, 'rotationchange', 'rotation change');
+
+    cdPing = new Cooldown(5000);
+
+    bot.on('message', (jsonMsg) => {
+        PGMDeathMessagesMatchKill(stripAnsi(jsonMsg.toAnsi()));
+        /* connection.query(
+            "SELECT numberofkills FROM matchkills WHERE player = 'Tournai'",
+            function (err, result, fields) {
+                if (result[0])
+                    console.log('noy null');
+                else if (!result[0])
+                    console.log('null');
+            }
+        ); */
+    });
 
     var cron = schedule.scheduleJob('59 23 * * *', function () {
         factsday(bot);
@@ -282,40 +318,76 @@ function connect(bot, teams) {
             }
         });
     });
-    bot.on('clevert', (username, match1, message = match1) => {
+    bot.on('askt', (username, match1, message = match1) => {
         if (username === bot.username) return
-        var datetime = new Date();
-        fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
-        request.post({
-            headers: { 'content-type': 'application/x-www-form-urlencoded' },
-            url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
-            body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
-        }, function (error, response, body) {
-            if (!error && response.statusCode == 200) {
-                var datetime = new Date();
-                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
-                sendToChat(bot, username + ' ' + libxmljs.parseXml(body).get('//response').text());
-            }
-        });
-    });
-    bot.on('cleverg', (username, match1, message = match1) => {
-        if (username === bot.username) return
-        var datetime = new Date();
-        fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
-        request.post({
-            headers: { 'content-type': 'application/x-www-form-urlencoded' },
-            url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
-            body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
-        }, function (error, response, body) {
-            if (!error && response.statusCode == 200) {
-                var datetime = new Date();
-                fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
-                if (teams.Observers.includes(username) == true)
-                    sendToChat(bot, username + ' ' + libxmljs.parseXml(body).get('//response').text());
+        if (message.match(/^.*?\bmy\b.*?\bping\b.*?/))
+            if ((cdPing.fire() || username == "unixfox"))
+                if (bot.players[username])
+                    sendToChat(username + ' your ping is ' + bot.players[username].ping);
                 else
-                    sendToChat(bot, '/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
-            }
-        });
+                    sendToChat('/msg ' + username + ' player not found');
+            else
+                sendToChat('/msg ' + username + ' please don\'t spam this command');
+        else if (message.match(/^.*?\bmy\b.*?\bping\b.*?/))
+            if ((cdPing.fire() || username == "unixfox"))
+                if (bot.players[username])
+                    sendToChat('/msg ' + username + ' your ping is ' + bot.players[username].ping);
+                else
+                    sendToChat('/msg ' + username + ' player not found');
+            else
+                sendToChat('/msg ' + username + ' please don\'t spam this command');
+        else {
+            var datetime = new Date();
+            fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
+            request.post({
+                headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
+                body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
+            }, function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    var datetime = new Date();
+                    fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
+                    sendToChat(bot, username + ' ' + libxmljs.parseXml(body).get('//response').text());
+                }
+            });
+        }
+    });
+    bot.on('askg', (username, match1, message = match1) => {
+        if (username === bot.username) return
+        if (message.match(/^.*?\bmy\b.*?\bping\b.*?/))
+            if ((cdPing.fire() || username == "unixfox"))
+                if (bot.players[username])
+                    sendToChat('/msg ' + username + ' your ping is ' + bot.players[username].ping);
+                else
+                    sendToChat('/msg ' + username + ' player not found');
+            else
+                sendToChat('/msg ' + username + ' please don\'t spam this command');
+        else if (message.match(/^.*?\bmy\b.*?\bping\b.*?/))
+            if ((cdPing.fire() || username == "unixfox"))
+                if (bot.players[username])
+                    sendToChat('/msg ' + username + ' your ping is ' + bot.players[username].ping);
+                else
+                    sendToChat('/msg ' + username + ' player not found');
+            else
+                sendToChat('/msg ' + username + ' please don\'t spam this command');
+        else {
+            var datetime = new Date();
+            fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' triggered cleverbot with: ' + message + '\r\n');
+            request.post({
+                headers: { 'content-type': 'application/x-www-form-urlencoded' },
+                url: 'http://app.cleverbot.com/webservicexml_ais_AYA',
+                body: "stimulus=" + message + "&sessionid=" + username + "&vtext8=&vtext6=&vtext5=&vtext4=%3F&vtext3=&vtext2=&icognoCheck=6fa999ff37ebaec6a5adddc5ecf96fb5&icognoID=cleverandroid"
+            }, function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    var datetime = new Date();
+                    fs.appendFile('mentionlog', '[' + datetime + ']Cleverbot response for ' + username + ' : ' + libxmljs.parseXml(body).get('//response').text() + '\r\n');
+                    if (teams.Observers.includes(username) == true)
+                        sendToChat(bot, username + ' ' + libxmljs.parseXml(body).get('//response').text());
+                    else
+                        sendToChat(bot, '/g ' + username + ' ' + libxmljs.parseXml(body).get('//response').text());
+                }
+            });
+        }
     });
     bot.on('chat', (username, message) => {
         if (username === bot.username) return
