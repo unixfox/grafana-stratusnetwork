@@ -358,7 +358,7 @@ function connect(bot, teams) {
             bot.clearControlStates();
             if (bot.blockAt(bot.entity.position.offset(0, -2, 0)) != null)
                 if (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name)
-                    if ((bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false) && teams.Observers.includes(username) == false)
+                    if (!teams.Observers || (bot.blockAt(bot.entity.position.offset(0, -2, 0)).name == "air" || bot.canDigBlock(bot.blockAt(bot.entity.position.offset(0, -1, 0))) == false) && teams.Observers.includes(username) == false)
                         bot.chat('/tp ' + username);
             bot.activateItem();
             bot.setControlState('forward', true);
@@ -388,7 +388,7 @@ function connect(bot, teams) {
                 };
                 setInterval(watchTarget, 50);
                 function watchTarget() {
-                    if (!target) return
+                    if (!target || target.position) return
                     bot.lookAt(target.position.offset(0, target.height, 0));
                 };
             }
