@@ -1,0 +1,47 @@
+{
+  "name": "grafana-stratusnetwork",
+  "version": "0.0.1",
+  "description": "Minecraft bot",
+  "main": "bot.js",
+  "dependencies": {
+    "@sentry/node": "^4.1.1",
+    "body-parser": "^1.18.3",
+    "cooldown": "^0.2.0",
+    "dot-properties": "^0.2.0",
+    "express": "^4.16.3",
+    "fs": "^0.0.1-security",
+    "json-easy-filter": "^0.3.1",
+    "minecraft-pinger": "^1.0.3",
+    "mineflayer": "^2.7.3",
+    "mongoose": "^5.3.2",
+    "mysql2": "^1.6.1",
+    "named-regexp-groups": "^1.0.3",
+    "node-schedule": "^1.3.0",
+    "prismarine-tokens": "^1.0.3",
+    "pusher": "^2.1.3",
+    "readline": "^1.3.0",
+    "recastai": "^4.0.0",
+    "request": "^2.88.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "node --no-deprecation bot.js 172.65.194.229 25565"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unixfox/grafana-stratusnetwork.git"
+  },
+  "keywords": [
+    "minecraft",
+    "stratusnetwork",
+    "mineflayer",
+    "prismarine",
+    "bot"
+  ],
+  "author": "unixfox",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/unixfox/grafana-stratusnetwork/issues"
+  },
+  "homepage": "https://github.com/unixfox/grafana-stratusnetwork#readme"
+}
