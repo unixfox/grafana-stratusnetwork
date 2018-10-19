@@ -16,7 +16,7 @@ var stripAnsi = require('strip-ansi');
 const { parse, parseLines, stringify } = require('dot-properties');
 const namedRegExp = require('named-regexp-groups');
 var recastai = require('recastai').default;
-var build = new recastai.build(process.env.RECASTAI_TOKEN);
+var build = new recastai.build(process.env.RECASTAI_TOKEN, 'en');
 
 const Sentry = require('@sentry/node');
 if (!process.env.dev)
