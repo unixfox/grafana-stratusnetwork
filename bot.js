@@ -388,7 +388,7 @@ function connect(bot, teams) {
                 };
                 setInterval(watchTarget, 50);
                 function watchTarget() {
-                    if (!target || target.position) return
+                    if (!target || !target.position) return
                     bot.lookAt(target.position.offset(0, target.height, 0));
                 };
             }
