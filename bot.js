@@ -191,7 +191,7 @@ function connect(bot, teams) {
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)>: (.*)$/, 'chat', 'chat global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (.*)$/, 'chat', 'chat team');
     bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
-    bot.chatAddPattern(/^Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
+    bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
     bot.chatAddPattern(/^The time limit is (.+) with the result(?:.*?)/, 'tlcmd', 'Time limit');
     bot.chatAddPattern(/^Next map: ([\w\d' :]+) by/, 'nextmapcmd', 'Next map');
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Players playing on Mixed');
