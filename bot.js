@@ -191,17 +191,17 @@ function connect(bot, teams) {
     bot.chatAddPattern(/<(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)>: (.*)$/, 'chat', 'chat global');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (.*)$/, 'chat', 'chat team');
     bot.chatAddPattern(/\[PM\] From (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
-    bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
-    bot.chatAddPattern(/The time limit is (.+) with the result(?:.*?)/, 'tlcmd', 'Time limit');
-    bot.chatAddPattern(/Next map: ([\w\d' :]+) by/, 'nextmapcmd', 'Next map');
+    bot.chatAddPattern(/^Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
+    bot.chatAddPattern(/^The time limit is (.+) with the result(?:.*?)/, 'tlcmd', 'Time limit');
+    bot.chatAddPattern(/^Next map: ([\w\d' :]+) by/, 'nextmapcmd', 'Next map');
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Players playing on Mixed');
-    bot.chatAddPattern(/(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'shot kill');
-    bot.chatAddPattern(/Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
+    bot.chatAddPattern(/^(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'shot kill');
+    bot.chatAddPattern(/^Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
-    bot.chatAddPattern(/Current: ([\w]+)$/, 'rotationchange', 'rotation change');
+    bot.chatAddPattern(/^Current: ([\w]+)$/, 'rotationchange', 'rotation change');
     bot._client.on('success', (packet) => {
-        bot.chatAddPattern(RegExp("<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
-        bot.chatAddPattern(RegExp("\\(Team\\) (?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+): (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askt', 'Ask Team');
+        bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
+        bot.chatAddPattern(RegExp("^\\(Team\\) (?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+): (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askt', 'Ask Team');
     });
 
     cdPing = new Cooldown(5000);
