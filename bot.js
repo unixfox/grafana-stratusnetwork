@@ -23,7 +23,7 @@ if (!process.env.dev)
     Sentry.init({ dsn: process.env.SENTRY_DNS });
 
 var countreconnect = 0;
-var cd = new Cooldown(600000);
+var cd = new Cooldown(20000);
 
 var pusher = new Pusher({
     appId: '607142',
@@ -199,12 +199,19 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
     bot.chatAddPattern(/^Current: ([\w]+)$/, 'rotationchange', 'rotation change');
+    bot.chatAddPattern(/^\+(?:[\d]) Droplet(?:.*)$/, 'droplet', 'someone gave droplet')
     bot._client.on('success', (packet) => {
         bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
         bot.chatAddPattern(RegExp("^\\(Team\\) (?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+): (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askt', 'Ask Team');
     });
 
     cdPing = new Cooldown(5000);
+    cdDroplet = new Cooldown(30000);
+
+    bot.on('droplet', () => {
+        if (cd.fire())
+            sendToChat(bot, 'Thank you for the droplet(s) <3!');
+    });
 
     bot.on('message', (jsonMsg) => {
         PGMDeathMessagesMatchKill(stripAnsi(jsonMsg.toAnsi()));
