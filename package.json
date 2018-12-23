@@ -8,6 +8,7 @@
     "body-parser": "^1.18.3",
     "cooldown": "^0.2.0",
     "dot-properties": "^0.2.0",
+    "dotenv": "^6.1.0",
     "express": "^4.16.3",
     "fs": "^0.0.1-security",
     "json-easy-filter": "^0.3.1",
@@ -25,7 +26,7 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "node --no-deprecation bot.js 172.65.194.229 25565"
+    "test": "dev=yes node --no-deprecation bot.js 172.65.194.229 25565"
   },
   "repository": {
     "type": "git",

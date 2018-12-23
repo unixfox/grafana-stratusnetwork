@@ -17,6 +17,7 @@ const { parse, parseLines, stringify } = require('dot-properties');
 const namedRegExp = require('named-regexp-groups');
 var recastai = require('recastai').default;
 var build = new recastai.build(process.env.RECASTAI_TOKEN, 'en');
+require('dotenv').config();
 
 const Sentry = require('@sentry/node');
 if (!process.env.dev)
@@ -26,9 +27,9 @@ var countreconnect = 0;
 var cd = new Cooldown(20000);
 
 var pusher = new Pusher({
-    appId: '607142',
-    key: 'c07cc5767c749dddb0b3',
-    secret: process.env.pusher,
+    appId: process.env.pusher_appid,
+    key: process.env.pusher_key,
+    secret: process.env.pusher_secret,
     cluster: 'eu',
     encrypted: true
 });
@@ -45,8 +46,8 @@ var options = {
 };
 
 const connection = mysql.createConnection({
-    host: 'localhost',
-    user: process.env.mysql_user,
+    host: (process.env.mysql_host || 'localhost'),
+    user: (process.env.mysql_user || 'grafana'),
     password: process.env.mysql_passwd,
     database: 'stratusgraph',
     port: (process.env.mysql_port || 3306)
