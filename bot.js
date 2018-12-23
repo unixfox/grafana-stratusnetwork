@@ -330,6 +330,8 @@ function connect(bot, teams) {
     });
     bot.on('askt', (username, match1, message = match1) => {
         if (username === bot.username) return
+        var blacklistUsernames = fs.readFileSync('blacklist', 'utf8');
+        if (blacklistUsernames.includes(username)) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' asked: ' + message + '\r\n');
         build.dialog({ type: 'text', content: message }, { conversationId: username })
@@ -341,6 +343,8 @@ function connect(bot, teams) {
     });
     bot.on('askg', (username, match1, message = match1) => {
         if (username === bot.username) return
+        var blacklistUsernames = fs.readFileSync('blacklist', 'utf8');
+        if (blacklistUsernames.includes(username)) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' asked: ' + message + '\r\n');
         build.dialog({ type: 'text', content: message }, { conversationId: username })
