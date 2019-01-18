@@ -214,8 +214,8 @@ function connect(bot, teams) {
             sendToChat(bot, 'Thank you for the droplet(s) <3!');
     });
 
-    bot.on('message', (jsonMsg) => {
-        PGMDeathMessagesMatchKill(stripAnsi(jsonMsg.toAnsi()));
+    //bot.on('message', (jsonMsg) => {
+    //    PGMDeathMessagesMatchKill(stripAnsi(jsonMsg.toAnsi()));
         /* connection.query(
             "SELECT numberofkills FROM matchkills WHERE player = 'Tournai'",
             function (err, result, fields) {
@@ -225,7 +225,7 @@ function connect(bot, teams) {
                     console.log('null');
             }
         ); */
-    });
+    //});
 
     var cron = schedule.scheduleJob('59 23 * * *', function () {
         factsday(bot);
