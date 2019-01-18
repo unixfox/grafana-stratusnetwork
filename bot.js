@@ -15,7 +15,7 @@ var mcstatus = require('minecraft-pinger');
 var stripAnsi = require('strip-ansi');
 const { parse, parseLines, stringify } = require('dot-properties');
 const namedRegExp = require('named-regexp-groups');
-var recastai = require('recastai').default;
+var recastai = require('sapcai').default;
 var build = new recastai.build(process.env.RECASTAI_TOKEN, 'en');
 require('dotenv').config();
 
