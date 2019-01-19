@@ -271,9 +271,6 @@ function connect(bot, teams) {
         );
     });
     bot.on('message', (message) => {
-        if (message.toAnsi().includes('No servers') == true || message.toAnsi().includes('Could not connect') == true) {
-            setTimeout(function () { bot.chat('/server mixed'); }, 10000);
-        }
         var text = message.toAnsi() + '\r\n';
         fs.appendFile('log', text);
     });
