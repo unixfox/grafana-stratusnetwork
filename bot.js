@@ -73,32 +73,26 @@ tokens.use(options, function (_err, _opts) {
             res.json(teams);
         });
     });
-    bindEvents(bot, rl, server);
     try {
         connect(bot, teams);
     }
     catch (err) {
         Sentry.captureException(err);
     }
-    recursiveAsyncReadLine(bot, rl);
-});
-
-function bindEvents(bot, rl, server) {
-
     bot.on('error', function (err) {
         console.log('Error attempting to reconnect: ' + err.errno + '.');
         if (err.code == undefined) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
-            process.exit();
         };
+        process.exit();
     });
-
     bot.on('end', function () {
         console.log("Bot has ended");
         server.close();
-        setTimeout(relog, 30000);
+        process.exit();
     });
-}
+    recursiveAsyncReadLine(bot, rl);
+});
 
 function hmsToSecondsOnly(str) {
     var p = str.split(':'),
@@ -110,34 +104,6 @@ function hmsToSecondsOnly(str) {
     }
 
     return s;
-}
-
-function relog() {
-    console.log("Attempting to reconnect...");
-    tokens.use(options, function (_err, _opts) {
-        if (_err) throw _err;
-        var teams = {};
-        var bot = mineflayer.createBot(_opts);
-        var server = app.listen((process.env.PORT || 8080), function () {
-            app.get("/teams", (req, res, next) => {
-                res.json(teams);
-            });
-        });
-        var rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        bindEvents(bot, rl, server);
-        try {
-            connect(bot, teams);
-        }
-        catch (err) {
-            Sentry.captureException(err);
-        }
-        recursiveAsyncReadLine(bot, rl);
-    });
-    if (countreconnect >= 20) process.exit();
-    countreconnect++;
 }
 
 function updateRotation(rotationName) {
@@ -200,7 +166,8 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
     bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
     bot.chatAddPattern(/^Current: ([\w]+)$/, 'rotationchange', 'rotation change');
-    bot.chatAddPattern(/^\+(?:[\d]) Droplet(?:.*)$/, 'droplet', 'someone gave droplet')
+    bot.chatAddPattern(/^\+(?:[\d]) Droplet(?:.*)$/, 'droplet', 'someone gave droplet');
+    bot.chatAddPattern(/^You are currently on \[Lobby\]$/, 'connectedlobby', 'bot currently on Lobby');
     bot._client.on('success', (packet) => {
         bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
         bot.chatAddPattern(RegExp("^\\(Team\\) (?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+): (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askt', 'Ask Team');
@@ -227,10 +194,14 @@ function connect(bot, teams) {
         ); */
     //});
 
-    var cron = schedule.scheduleJob('59 23 * * *', function () {
+    var cron = schedule.scheduleJob('0 0 * * *', function () {
         factsday(bot);
     });
 
+    bot.on('connectedlobby', (username) => {
+        bot.chat('/server mixed');
+        setTimeout(function(){ bot.chat('/server'); }, 5000);
+    });
     bot.on('rotationchange', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='6';");
         updateRotation(username);
@@ -314,6 +285,7 @@ function connect(bot, teams) {
     bot.on('respawn', () => {
         connection.query("UPDATE currentmap SET Value = '" + "No time limit" + "' WHERE `id` IN ('3','4');");
         bot.chat('/server mixed'); bot.chat('/rot'); bot.chat('/tl'); bot.chat('/next');
+        setTimeout(function(){ bot.chat('/server'); }, 5000);
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
         bot._client.once('playerlist_header', (packet) => {
