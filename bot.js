@@ -80,7 +80,6 @@ tokens.use(options, function (_err, _opts) {
         Sentry.captureException(err);
     }
     bot.on('error', function (err) {
-        console.log('Error attempting to reconnect: ' + err.errno + '.');
         if (err.code == undefined) {
             console.log('Invalid credentials OR bot needs to wait because it relogged too quickly.');
         };
@@ -199,6 +198,7 @@ function connect(bot, teams) {
     });
 
     bot.on('connectedlobby', (username) => {
+        console.log('Attempting to reconnect to mixed server...');
         bot.chat('/server mixed');
         setTimeout(function(){ bot.chat('/server'); }, 5000);
     });
@@ -278,6 +278,7 @@ function connect(bot, teams) {
         connection.query('UPDATE currentmap SET Value = "' + "Default" + '" WHERE id="6";');
         updateRotation('default');
         bot.chat('/server mixed');
+        setTimeout(function(){ bot.chat('/server'); }, 5000);
     });
     bot.on('respawn', () => {
         connection.query("UPDATE currentmap SET Value = '" + "No time limit" + "' WHERE `id` IN ('3','4');");
