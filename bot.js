@@ -287,7 +287,7 @@ function connect(bot, teams) {
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
         bot._client.once('playerlist_header', (packet) => {
-            if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].extra != "undefined")
+            if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].extra != "undefined" && JSON.parse(packet.header).extra[0].extra[0] != "undefined")
                 connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
             else {
                 bot._client.once('playerlist_header', (packet) => {
