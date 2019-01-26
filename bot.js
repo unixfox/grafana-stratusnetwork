@@ -49,7 +49,7 @@ const connection = mysql.createConnection({
     host: (process.env.mysql_host || 'localhost'),
     user: (process.env.mysql_user || 'grafana'),
     password: process.env.mysql_passwd,
-    database: 'stratusgraph',
+    database: (process.env.mysql_database || 'stratusgraph'),
     port: (process.env.mysql_port || 3306)
 });
 
