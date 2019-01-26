@@ -4,7 +4,6 @@ module.exports = {
     script: "./bot.js",
     node_args: "--no-deprecation",
     args: "172.65.194.229 25565",
-    restart_delay: 30000,
     autorestart: true,
     instances: 1,
     max_memory_restart: '1G',
