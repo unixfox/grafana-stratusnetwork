@@ -1,6 +1,9 @@
 {
   "name": "grafana-stratusnetwork",
   "version": "0.0.1",
+  "engines": {
+    "node": "8.15.0"
+  },
   "description": "Minecraft bot",
   "main": "bot.js",
   "dependencies": {
