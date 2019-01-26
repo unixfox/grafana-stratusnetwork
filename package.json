@@ -23,7 +23,8 @@
     "pusher": "^2.2.0",
     "readline": "^1.3.0",
     "request": "^2.88.0",
-    "sapcai": "^4.1.0"
+    "sapcai": "^4.1.0",
+    "strip-ansi": "^5.0.0"
   },
   "devDependencies": {},
   "scripts": {
