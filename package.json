@@ -31,7 +31,7 @@
   },
   "devDependencies": {},
   "scripts": {
-    "start": "node --no-deprecation bot.js 172.65.194.229 25565",
+    "start": "pm2-runtime start ecosystem.config.js --env production",
     "test": "dev=yes node --no-deprecation bot.js 172.65.194.229 25565"
   },
   "repository": {
