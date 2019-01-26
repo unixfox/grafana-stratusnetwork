@@ -35,8 +35,8 @@ var pusher = new Pusher({
 });
 
 var options = {
-    host: process.argv[2],
-    port: parseInt(process.argv[3]),
+    host: (process.env.MC_IP || process.argv[2]),
+    port: (parseInt(process.env.MC_PORT) || parseInt(process.argv[3])),
     username: process.env.mc_user,
     password: process.env.mc_passwd,
     verbose: true,
