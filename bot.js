@@ -523,8 +523,8 @@ function connect(bot, teams) {
                                 "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
                                 result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths :(.");
                         else if (result[3][0]['EXISTS (SELECT 1 FROM matchkillsdeaths)'] == "1") {
-                            sendToChat(bot, randomsentense + " " + result[1][0]['player'] + " got most of the kills with " + result[1][0]['kills'] + " kills! " +
-                                "And unfortunately " + result[2][0]['player'] + " got most of the deaths with " + result[2][0]['deaths'] + " :(.");
+                            sendToChat(bot, randomsentense + " " + "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
+                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths :(.");
                         }
                         connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                     }, 3000);
