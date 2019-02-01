@@ -1,22 +1,22 @@
-var mineflayer = require('mineflayer')
-var tokens = require('prismarine-tokens')
-var readline = require('readline');
-var fs = require('fs');
+const mineflayer = require('mineflayer')
+const tokens = require('prismarine-tokens')
+const readline = require('readline');
+const fs = require('fs');
 const mysql = require('mysql2');
-var Cooldown = require('cooldown');
-var request = require('request');
-var Pusher = require('pusher');
-var JefNode = require('json-easy-filter').JefNode;
-var yaml = require('js-yaml');
-var express = require("express");
-var app = express();
-var schedule = require('node-schedule');
-var mcstatus = require('minecraft-pinger');
-var stripAnsi = require('strip-ansi');
+const Cooldown = require('cooldown');
+const request = require('request');
+const Pusher = require('pusher');
+const JefNode = require('json-easy-filter').JefNode;
+const yaml = require('js-yaml');
+const express = require("express");
+const app = express();
+const schedule = require('node-schedule');
+const mcstatus = require('minecraft-pinger');
+const stripAnsi = require('strip-ansi');
 const { parse, parseLines, stringify } = require('dot-properties');
 const namedRegExp = require('named-regexp-groups');
-var recastai = require('sapcai').default;
-var build = new recastai.build(process.env.RECASTAI_TOKEN, 'en');
+const recastai = require('sapcai').default;
+const build = new recastai.build(process.env.RECASTAI_TOKEN, 'en');
 require('dotenv').config();
 
 const Sentry = require('@sentry/node');
@@ -50,7 +50,8 @@ const connection = mysql.createConnection({
     user: (process.env.mysql_user || 'grafana'),
     password: process.env.mysql_passwd,
     database: (process.env.mysql_database || 'stratusgraph'),
-    port: (process.env.mysql_port || 3306)
+    port: (process.env.mysql_port || 3306),
+    multipleStatements: true
 });
 
 var rl = readline.createInterface({
@@ -141,7 +142,7 @@ function PGMDeathMessagesMatchKill(message) {
             if (!PGMDeathMessages[i][1].includes('{3}') && !PGMDeathMessages[i][1].includes('predicted')) {
                 regex = new namedRegExp(RegExp(PGMDeathMessages[i][1].replace('{0}', '(:<victimName>[\\w\\d_]+)').replace('{1}', '(:<killerName>[\\w\\d_]+)').replace('{2}', '(:<weapon>.+)').replace('{4}', '(:<distanceBlocks>[\\d]+)')));
                 if (regex.exec(message))
-                    console.log(regex.exec(message));
+                    return (regex.exec(message));
             }
     }
 }
@@ -167,6 +168,7 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^Current: ([\w]+)$/, 'rotationchange', 'rotation change');
     bot.chatAddPattern(/^\+(?:[\d]) Droplet(?:.*)$/, 'droplet', 'someone gave droplet');
     bot.chatAddPattern(/^You are currently on \[Lobby\]$/, 'connectedlobby', 'bot currently on Lobby');
+    bot.chatAddPattern(/^The match has started!$/, 'matchstarted', 'the match just started');
     bot._client.on('success', (packet) => {
         bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
         bot.chatAddPattern(RegExp("^\\(Team\\) (?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+): (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askt', 'Ask Team');
@@ -180,18 +182,39 @@ function connect(bot, teams) {
             sendToChat(bot, 'Thank you for the droplet(s) <3!');
     });
 
-    //bot.on('message', (jsonMsg) => {
-    //    PGMDeathMessagesMatchKill(stripAnsi(jsonMsg.toAnsi()));
-        /* connection.query(
-            "SELECT numberofkills FROM matchkills WHERE player = 'Tournai'",
-            function (err, result, fields) {
-                if (result[0])
-                    console.log('noy null');
-                else if (!result[0])
-                    console.log('null');
-            }
-        ); */
-    //});
+    bot.on('matchstarted', () => {
+        connection.query("TRUNCATE matchkillsdeaths;");
+    });
+
+    bot.on('message', (jsonMsg) => {
+        const deathMessage = PGMDeathMessagesMatchKill(stripAnsi(jsonMsg.toAnsi()));
+        if (deathMessage && deathMessage.groups.victimName && deathMessage.groups.killerName) {
+            connection.query(
+                "SELECT kills FROM matchkillsdeaths WHERE player = '" + deathMessage.groups.killerName + "'",
+                function (err, result, fields) {
+                    if (result[0]) {
+                        connection.query("UPDATE matchkillsdeaths SET kills = '" + (result[0]['kills'] + 1) + "' WHERE player='" + deathMessage.groups.killerName + "';");
+                    }
+                    else if (!result[0]) {
+                        connection.query('INSERT INTO matchkillsdeaths (player) VALUES (\"' + deathMessage.groups.killerName + '\");');
+                        connection.query("UPDATE matchkillsdeaths SET kills = '1' WHERE player='" + deathMessage.groups.killerName + "';");
+                    }
+                }
+            );
+            connection.query(
+                "SELECT deaths FROM matchkillsdeaths WHERE player = '" + deathMessage.groups.victimName + "'",
+                function (err, result, fields) {
+                    if (result[0]) {
+                        connection.query("UPDATE matchkillsdeaths SET deaths = '" + (result[0]['deaths'] + 1) + "' WHERE player='" + deathMessage.groups.victimName + "';");
+                    }
+                    else if (!result[0]) {
+                        connection.query('INSERT INTO matchkillsdeaths (player) VALUES (\"' + deathMessage.groups.victimName + '\");');
+                        connection.query("UPDATE matchkillsdeaths SET deaths = '1' WHERE player='" + deathMessage.groups.victimName + "';");
+                    }
+                }
+            );
+        }
+    });
 
     var cron = schedule.scheduleJob('0 0 * * *', function () {
         factsday(bot);
@@ -200,7 +223,7 @@ function connect(bot, teams) {
     bot.on('connectedlobby', (username) => {
         console.log('Attempting to reconnect to mixed server...');
         bot.chat('/server mixed');
-        setTimeout(function(){ bot.chat('/server'); }, 5000);
+        setTimeout(function () { bot.chat('/server'); }, 5000);
     });
     bot.on('rotationchange', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='6';");
@@ -278,26 +301,26 @@ function connect(bot, teams) {
         connection.query('UPDATE currentmap SET Value = "' + "Default" + '" WHERE id="6";');
         updateRotation('default');
         bot.chat('/server mixed');
-        setTimeout(function(){ bot.chat('/server'); }, 5000);
+        setTimeout(function () { bot.chat('/server'); }, 5000);
     });
     bot.on('respawn', () => {
         connection.query("UPDATE currentmap SET Value = '" + "No time limit" + "' WHERE `id` IN ('3','4');");
         bot.chat('/server mixed'); bot.chat('/rot'); bot.chat('/tl'); bot.chat('/next');
-        setTimeout(function(){ bot.chat('/server'); }, 5000);
+        setTimeout(function () { bot.chat('/server'); }, 5000);
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
         bot._client.once('playerlist_header', (packet) => {
             if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].extra != "undefined")
                 if (JSON.parse(packet.header).extra[0].extra[0] != "undefined")
                     connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
-            else {
-                bot._client.once('playerlist_header', (packet) => {
-                    if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text != "")
-                        connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].text + '" WHERE id="1";');
-                    else if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text == "")
-                        connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
-                });
-            }
+                else {
+                    bot._client.once('playerlist_header', (packet) => {
+                        if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text != "")
+                            connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].text + '" WHERE id="1";');
+                        else if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text == "")
+                            connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
+                    });
+                }
         });
     });
     bot.on('askt', (username, match1, message = match1) => {
@@ -489,13 +512,20 @@ function connect(bot, teams) {
             var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
             var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
             connection.query(
-                "SELECT Value FROM matchfacts WHERE id IN ('1','2')",
+                "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
+                "SELECT player, kills FROM matchkillsdeaths ORDER BY kills DESC LIMIT 1;" +
+                "SELECT player, deaths FROM matchkillsdeaths ORDER BY deaths DESC LIMIT 1;" +
+                "SELECT EXISTS (SELECT 1 FROM matchkillsdeaths);",
                 function (err, result, fields) {
                     setTimeout(function () {
-                        if (Number(result[0]['Value']) > 0)
-                            sendToChat(bot, randomsentense + " Longest kill shot of the match by " + result[1]['Value'] + " from " + result[0]['Value'] + " blocks!");
-                        else
-                            sendToChat(bot, randomsentense);
+                        if (Number(result[0][0]['Value']) > 0)
+                            sendToChat(bot, randomsentense + " Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
+                                result[1][0]['player'] + " got most of the kills with " + result[1][0]['kills'] + " kills! " +
+                                "And unfortunately " + result[2][0]['player'] + " got most of the deaths with " + result[2][0]['deaths'] + " deaths :(.");
+                        else if (result[3][0]['EXISTS (SELECT 1 FROM matchkillsdeaths)'] == "1") {
+                            sendToChat(bot, randomsentense + " " + result[1][0]['player'] + " got most of the kills with " + result[1][0]['kills'] + " kills! " +
+                                "And unfortunately " + result[2][0]['player'] + " got most of the deaths with " + result[2][0]['deaths'] + " :(.");
+                        }
                         connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                     }, 3000);
                 }
