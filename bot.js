@@ -188,31 +188,33 @@ function connect(bot, teams) {
 
     bot.on('message', (jsonMsg) => {
         const deathMessage = PGMDeathMessagesMatchKill(stripAnsi(jsonMsg.toAnsi()));
-        if (deathMessage && deathMessage.groups.victimName && deathMessage.groups.killerName) {
-            connection.query(
-                "SELECT kills FROM matchkillsdeaths WHERE player = '" + deathMessage.groups.killerName + "'",
-                function (err, result, fields) {
-                    if (result[0]) {
-                        connection.query("UPDATE matchkillsdeaths SET kills = '" + (result[0]['kills'] + 1) + "' WHERE player='" + deathMessage.groups.killerName + "';");
+        if (deathMessage) {
+            if (deathMessage.groups.killerName)
+                connection.query(
+                    "SELECT kills FROM matchkillsdeaths WHERE player = '" + deathMessage.groups.killerName + "'",
+                    function (err, result, fields) {
+                        if (result[0]) {
+                            connection.query("UPDATE matchkillsdeaths SET kills = '" + (result[0]['kills'] + 1) + "' WHERE player='" + deathMessage.groups.killerName + "';");
+                        }
+                        else if (!result[0]) {
+                            connection.query('INSERT INTO matchkillsdeaths (player) VALUES (\"' + deathMessage.groups.killerName + '\");');
+                            connection.query("UPDATE matchkillsdeaths SET kills = '1' WHERE player='" + deathMessage.groups.killerName + "';");
+                        }
                     }
-                    else if (!result[0]) {
-                        connection.query('INSERT INTO matchkillsdeaths (player) VALUES (\"' + deathMessage.groups.killerName + '\");');
-                        connection.query("UPDATE matchkillsdeaths SET kills = '1' WHERE player='" + deathMessage.groups.killerName + "';");
+                );
+            if (deathMessage.groups.victimName)
+                connection.query(
+                    "SELECT deaths FROM matchkillsdeaths WHERE player = '" + deathMessage.groups.victimName + "'",
+                    function (err, result, fields) {
+                        if (result[0]) {
+                            connection.query("UPDATE matchkillsdeaths SET deaths = '" + (result[0]['deaths'] + 1) + "' WHERE player='" + deathMessage.groups.victimName + "';");
+                        }
+                        else if (!result[0]) {
+                            connection.query('INSERT INTO matchkillsdeaths (player) VALUES (\"' + deathMessage.groups.victimName + '\");');
+                            connection.query("UPDATE matchkillsdeaths SET deaths = '1' WHERE player='" + deathMessage.groups.victimName + "';");
+                        }
                     }
-                }
-            );
-            connection.query(
-                "SELECT deaths FROM matchkillsdeaths WHERE player = '" + deathMessage.groups.victimName + "'",
-                function (err, result, fields) {
-                    if (result[0]) {
-                        connection.query("UPDATE matchkillsdeaths SET deaths = '" + (result[0]['deaths'] + 1) + "' WHERE player='" + deathMessage.groups.victimName + "';");
-                    }
-                    else if (!result[0]) {
-                        connection.query('INSERT INTO matchkillsdeaths (player) VALUES (\"' + deathMessage.groups.victimName + '\");');
-                        connection.query("UPDATE matchkillsdeaths SET deaths = '1' WHERE player='" + deathMessage.groups.victimName + "';");
-                    }
-                }
-            );
+                );
         }
     });
 
@@ -514,18 +516,16 @@ function connect(bot, teams) {
             connection.query(
                 "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
                 "SELECT player, kills FROM matchkillsdeaths ORDER BY kills DESC LIMIT 1;" +
-                "SELECT player, deaths FROM matchkillsdeaths ORDER BY deaths DESC LIMIT 1;" +
-                "SELECT EXISTS (SELECT 1 FROM matchkillsdeaths);",
+                "SELECT player, deaths FROM matchkillsdeaths ORDER BY deaths DESC LIMIT 1;",
                 function (err, result, fields) {
                     setTimeout(function () {
                         if (Number(result[0][0]['Value']) > 0)
                             sendToChat(bot, randomsentense + " Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
                                 "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
-                                result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths :(.");
-                        else if (result[3][0]['EXISTS (SELECT 1 FROM matchkillsdeaths)'] == "1") {
+                                result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                        else if (result[1][0] || result[2][0])
                             sendToChat(bot, randomsentense + " " + "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
-                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths :(.");
-                        }
+                                result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
                         connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                     }, 3000);
                 }
