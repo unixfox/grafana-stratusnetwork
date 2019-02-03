@@ -248,7 +248,7 @@ function connect(bot, teams) {
             pusher.trigger('stratusgraphchannel', 'endmatch', {
                 "message": "end"
             });
-        var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
+        var sentenses = ['Good job!', 'gg', 'Great match!', 'Good game!', 'Nice match!', 'Great game!', 'Well played!', 'Nice job!', 'What a match!'];
         var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
         connection.query(
             "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
@@ -261,7 +261,7 @@ function connect(bot, teams) {
                             "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
                             result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
                     else if (result[1][0] || result[2][0])
-                        sendToChat(bot, randomsentense + " " + "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
+                        sendToChat(bot, randomsentense + " The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
                             result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
                     connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                 }, 4000);
