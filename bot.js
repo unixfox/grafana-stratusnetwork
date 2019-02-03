@@ -202,6 +202,7 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^The match has started!$/, 'matchstarted', 'the match just started');
     bot.chatAddPattern(/^Game over!$/, 'tiematch', 'tie match');
     bot.chatAddPattern(/^(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+) (?:wins|win|winners)!$/, 'matchwin', 'end of the match');
+    bot.chatAddPattern(/^Server restarting!$/, 'serverrestart', 'Server is restarting');
     bot._client.on('success', (packet) => {
         bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
         bot.chatAddPattern(RegExp("^\\(Team\\) (?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+): (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askt', 'Ask Team');
@@ -213,6 +214,10 @@ function connect(bot, teams) {
     bot.on('droplet', () => {
         if (cd.fire())
             sendToChat(bot, 'Thank you for the droplet(s) <3!');
+    });
+
+    bot.once('serverrestart', () => {
+        setTimeout(function () { sendToChat(bot, 'TIP: To avoid the lag spike during the restart do /lobby before the restart of the server!'); }, 5000);
     });
 
     bot.on('windowOpen', (window) => {
