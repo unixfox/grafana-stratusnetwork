@@ -277,8 +277,47 @@ function connect(bot, teams) {
         });
     });
 
+    bot.on('tiematch', () => {
+        connection.query("UPDATE currentmap SET Value = 'Tie match' WHERE id='7';");
+        if (!process.env.dev)
+            pusher.trigger('stratusgraphchannel', 'endmatch', {
+                "message": "end"
+            });
+        connection.query(
+            "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
+            "SELECT player, kills FROM matchkillsdeaths ORDER BY kills DESC LIMIT 1;" +
+            "SELECT player, deaths FROM matchkillsdeaths ORDER BY deaths DESC LIMIT 1;",
+            function (err, result, fields) {
+                setTimeout(function () {
+                    if (Number(result[0][0]['Value']) > 0)
+                        sendToChat(bot, "What a tie! Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
+                            "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
+                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                    else if (result[1][0] || result[2][0])
+                        sendToChat(bot, "What a tie! The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
+                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                    connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
+                }, 4000);
+            }
+        );
+        bot.chat('/match');
+        bot.once('lengthmatch', (username) => {
+            connection.query(
+                "SELECT Value FROM facts WHERE id='1'",
+                function (err, result, fields) {
+                    if (Number(hmsToSecondsOnly(username)) > Number(result[0]['Value'])) {
+                        connection.query(
+                            "UPDATE `facts` SET `value`='" + hmsToSecondsOnly(username) + "' WHERE  `id`=1;"
+                        );
+                    }
+                }
+            );
+        });
+    });
+
     bot.on('matchstarted', () => {
         connection.query("TRUNCATE matchkillsdeaths;");
+        connection.query("UPDATE currentmap SET Value = 'Computing...' WHERE id=7;");
     });
 
     bot.on('message', (jsonMsg) => {
@@ -490,11 +529,8 @@ function connect(bot, teams) {
                 connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.title).extra[0].extra[0].extra[1].extra[0].text + "' WHERE id='3';");
     });
     bot._client.on('playerlist_header', (packet) => {
-        if (JSON.parse(packet.header).extra[0].color) {
-            if (JSON.parse(packet.footer).extra[0].extra[3].extra[0].text == "00:00")
-                connection.query("UPDATE currentmap SET Value = 'Computing...' WHERE id=7;");
+        if (JSON.parse(packet.header).extra[0].color)
             connection.query("UPDATE currentmap SET Value = '" + JSON.parse(packet.footer).extra[0].extra[3].extra[0].text + "' WHERE id='2';");
-        }
     });
     bot._client.on('teams', (packet) => {
         new JefNode(packet).filter(function (node) {
