@@ -91,7 +91,6 @@ tokens.use(options, function (_err, _opts) {
         server.close();
         process.exit();
     });
-    recursiveAsyncReadLine(bot, rl);
 });
 
 function hmsToSecondsOnly(str) {
@@ -136,6 +135,39 @@ function removeArray(arr) {
     return arr;
 }
 
+function removeSectionSign(string) {
+    const codes = [
+        '§0',
+        '§1',
+        '§2',
+        '§3',
+        '§4',
+        '§5',
+        '§6',
+        '§7',
+        '§8',
+        '§9',
+        '§a',
+        '§b',
+        '§c',
+        '§d',
+        '§e',
+        '§f',
+        '§l',
+        '§o',
+        '§n',
+        '§m',
+        '§k',
+        '§r',
+    ];
+
+    let message = string;
+    for (i in codes) {
+        message = message.replace(new RegExp(codes[i], 'g'), '');
+    }
+    return message;
+}
+
 function PGMDeathMessagesMatchKill(message) {
     for (var i = 0; j = PGMDeathMessages.length, i < j; i++) {
         if (PGMDeathMessages[i][1] && !PGMDeathMessages[i][0].includes('#'))
@@ -160,7 +192,6 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^\[PM\] From (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): (.*)$/, 'whisper', 'Private Message');
     bot.chatAddPattern(/Current Rotation \(([a-zA-Z]+)\)/, 'rotcmd', 'Rotation');
     bot.chatAddPattern(/^The time limit is (.+) with the result(?:.*?)/, 'tlcmd', 'Time limit');
-    bot.chatAddPattern(/^Next map: ([\w\d' :]+) by/, 'nextmapcmd', 'Next map');
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Players playing on Mixed');
     bot.chatAddPattern(/^(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'shot kill');
     bot.chatAddPattern(/^Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
@@ -169,6 +200,8 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^\+(?:[\d]) Droplet(?:.*)$/, 'droplet', 'someone gave droplet');
     bot.chatAddPattern(/^You are currently on \[Lobby\]$/, 'connectedlobby', 'bot currently on Lobby');
     bot.chatAddPattern(/^The match has started!$/, 'matchstarted', 'the match just started');
+    bot.chatAddPattern(/^Game over!$/, 'tiematch', 'tie match');
+    bot.chatAddPattern(/^(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+) (?:wins|win|winners)!$/, 'matchwin', 'end of the match');
     bot._client.on('success', (packet) => {
         bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
         bot.chatAddPattern(RegExp("^\\(Team\\) (?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+): (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askt', 'Ask Team');
@@ -180,6 +213,68 @@ function connect(bot, teams) {
     bot.on('droplet', () => {
         if (cd.fire())
             sendToChat(bot, 'Thank you for the droplet(s) <3!');
+    });
+
+    bot.on('windowOpen', (window) => {
+        if (window.title.includes('Navigator')) {
+            const windowSlotsFiltered = window.slots.filter(function (el) {
+                return el != null;
+            });
+            if (windowSlotsFiltered.filter(slots => slots.name === "spectral_arrow")[0]) {
+                const windowSlotsArrowDisplayValuesFiltered = windowSlotsFiltered.filter(slots => slots.name === "spectral_arrow")[0].
+                    nbt.value.display.value.Lore.value.value.filter(function (el) {
+                        return el != "";
+                    });
+                windowSlotsArrowDisplayValuesFiltered.forEach(element => {
+                    if (element.includes('Map'))
+                        connection.query('UPDATE currentmap SET Value = "' + removeSectionSign(element).match(RegExp(/^Map: (.*)$/))[1] + '" WHERE id="1";');
+                    else if (element.includes('Next'))
+                        connection.query('UPDATE currentmap SET Value = "' + removeSectionSign(element).match(RegExp(/^Next: (.*)$/))[1] + '" WHERE id="5";');
+                });
+            }
+        }
+        bot.setQuickBarSlot('0');
+    });
+
+    bot.on('matchwin', (username) => {
+        if (username)
+            connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='7';");
+        if (!process.env.dev)
+            pusher.trigger('stratusgraphchannel', 'endmatch', {
+                "message": "end"
+            });
+        var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
+        var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
+        connection.query(
+            "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
+            "SELECT player, kills FROM matchkillsdeaths ORDER BY kills DESC LIMIT 1;" +
+            "SELECT player, deaths FROM matchkillsdeaths ORDER BY deaths DESC LIMIT 1;",
+            function (err, result, fields) {
+                setTimeout(function () {
+                    if (Number(result[0][0]['Value']) > 0)
+                        sendToChat(bot, randomsentense + " Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
+                            "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
+                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                    else if (result[1][0] || result[2][0])
+                        sendToChat(bot, randomsentense + " " + "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
+                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                    connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
+                }, 4000);
+            }
+        );
+        bot.chat('/match');
+        bot.once('lengthmatch', (username) => {
+            connection.query(
+                "SELECT Value FROM facts WHERE id='1'",
+                function (err, result, fields) {
+                    if (Number(hmsToSecondsOnly(username)) > Number(result[0]['Value'])) {
+                        connection.query(
+                            "UPDATE `facts` SET `value`='" + hmsToSecondsOnly(username) + "' WHERE  `id`=1;"
+                        );
+                    }
+                }
+            );
+        });
     });
 
     bot.on('matchstarted', () => {
@@ -218,7 +313,7 @@ function connect(bot, teams) {
         }
     });
 
-    var cron = schedule.scheduleJob('0 0 * * *', function () {
+    const cron = schedule.scheduleJob('0 0 * * *', function () {
         factsday(bot);
     });
 
@@ -237,9 +332,6 @@ function connect(bot, teams) {
     });
     bot.on('tlcmd', (username) => {
         connection.query("UPDATE currentmap SET Value = '" + username + "' WHERE id='4';");
-    });
-    bot.on('nextmapcmd', (username) => {
-        connection.query('UPDATE currentmap SET Value = "' + username + '" WHERE id="5";');
     });
     setInterval(function () {
         numberOfPlayers = 0;
@@ -262,8 +354,6 @@ function connect(bot, teams) {
                 }
             );
         }
-        else if (message.includes('despacito') == true && (cd.fire() || username == "unixfox"))
-            sendToChat(bot, 'ɴᴏᴡ ᴘʟᴀʏɪɴɢ: Luis Fonsi - Despacito ft. Daddy Yankee ─────────⚪───── ◄◄⠀▶⠀►►⠀ 1:35 / 4:41 ⠀ ───○ 🔊 ᴴᴰ ⚙️');
     });
     bot.on('shotblocks', (username, message) => {
         if (Number(message) > 100)
@@ -295,10 +385,10 @@ function connect(bot, teams) {
             }
         );
     });
-    bot.on('message', (message) => {
-        var text = message.toAnsi() + '\r\n';
-        fs.appendFile('log', text);
-    });
+    //bot.on('message', (message) => {
+    //    var text = message.toAnsi() + '\r\n';
+    //    console.log(text);
+    //});
     bot.on('spawn', () => {
         connection.query('UPDATE currentmap SET Value = "' + "Default" + '" WHERE id="6";');
         updateRotation('default');
@@ -306,24 +396,12 @@ function connect(bot, teams) {
         setTimeout(function () { bot.chat('/server'); }, 5000);
     });
     bot.on('respawn', () => {
+        setTimeout(function () { bot.setQuickBarSlot('7'); bot.activateItem(); }, 5000); // 5 seconds because we are too quick for the server
         connection.query("UPDATE currentmap SET Value = '" + "No time limit" + "' WHERE `id` IN ('3','4');");
         bot.chat('/server mixed'); bot.chat('/rot'); bot.chat('/tl'); bot.chat('/next');
         setTimeout(function () { bot.chat('/server'); }, 5000);
         bot.clearControlStates();
         setTimeout(function () { bot.setControlState('back', true); setTimeout(function () { bot.setControlState('back', false); }, 1000); }, 5000);
-        bot._client.once('playerlist_header', (packet) => {
-            if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].extra != "undefined")
-                if (JSON.parse(packet.header).extra[0].extra[0] != "undefined")
-                    connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
-                else {
-                    bot._client.once('playerlist_header', (packet) => {
-                        if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text != "")
-                            connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].text + '" WHERE id="1";');
-                        else if (JSON.parse(packet.header).extra[0].color && JSON.parse(packet.header).extra[0].text == "")
-                            connection.query('UPDATE currentmap SET Value = "' + JSON.parse(packet.header).extra[0].extra[0].extra[0].extra[0].text + '" WHERE id="1";');
-                    });
-                }
-        });
     });
     bot.on('askt', (username, match1, message = match1) => {
         if (username === bot.username) return
@@ -473,14 +551,6 @@ function connect(bot, teams) {
                 case 'stop jumping':
                     bot.setControlState('jump', false)
                     break
-                case 'attack':
-                    entity = nearestEntity()
-                    if (entity) {
-                        bot.attack(entity, true)
-                    } else {
-                        bot.chat('/msg ' + 'unixfox no nearby entities');
-                    }
-                    break
                 case 'tp':
                     bot.entity.position.y += 10
                     break
@@ -505,54 +575,10 @@ function connect(bot, teams) {
             setTimeout(function () { bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
         }
     });
-    bot.on('title', (text) => {
-        if (text.includes('wins!') == true) {
-            connection.query("UPDATE currentmap SET Value = '" + JSON.parse(text).extra[0].extra[0].extra[0].text + "' WHERE id='7';");
-            pusher.trigger('stratusgraphchannel', 'endmatch', {
-                "message": "end"
-            });
-            var sentenses = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match guys!', 'Great game!', 'Well played!', 'Nice job!'];
-            var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
-            connection.query(
-                "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
-                "SELECT player, kills FROM matchkillsdeaths ORDER BY kills DESC LIMIT 1;" +
-                "SELECT player, deaths FROM matchkillsdeaths ORDER BY deaths DESC LIMIT 1;",
-                function (err, result, fields) {
-                    setTimeout(function () {
-                        if (Number(result[0][0]['Value']) > 0)
-                            sendToChat(bot, randomsentense + " Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
-                                "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
-                                result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
-                        else if (result[1][0] || result[2][0])
-                            sendToChat(bot, randomsentense + " " + "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
-                                result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
-                        connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
-                    }, 3000);
-                }
-            );
-            bot.chat('/match');
-            bot.once('lengthmatch', (username) => {
-                connection.query(
-                    "SELECT Value FROM facts WHERE id='1'",
-                    function (err, result, fields) {
-                        if (Number(hmsToSecondsOnly(username)) > Number(result[0]['Value'])) {
-                            connection.query(
-                                "UPDATE `facts` SET `value`='" + hmsToSecondsOnly(username) + "' WHERE  `id`=1;"
-                            );
-                        }
-                    }
-                );
-            });
-        };
-    });
     bot.on('kicked', (reason, loggedIn) => {
         console.log(reason);
         console.log(loggedIn);
     });
-}
-
-function getinfo(bot) {
-    bot.chat('/rot'); bot.chat('/tl'); bot.chat('/servers'); bot.chat('/next');
 }
 
 function factsday(bot) {
@@ -576,13 +602,3 @@ function factsday(bot) {
         );
     }, 5000);
 }
-
-var recursiveAsyncReadLine = function (bot, rl) {
-    rl.question('', function (answer) {
-        if (answer == 'info')
-            getinfo(bot);
-        if (answer == 'facts')
-            factsday(bot);
-        recursiveAsyncReadLine(bot, rl);
-    });
-};
