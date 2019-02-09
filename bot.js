@@ -23,7 +23,6 @@ const Sentry = require('@sentry/node');
 if (!process.env.dev)
     Sentry.init({ dsn: process.env.SENTRY_DNS });
 
-var countreconnect = 0;
 var cd = new Cooldown(20000);
 
 var pusher = new Pusher({
@@ -52,11 +51,6 @@ const connection = mysql.createConnection({
     database: (process.env.mysql_database || 'stratusgraph'),
     port: (process.env.mysql_port || 3306),
     multipleStatements: true
-});
-
-var rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
 });
 
 var PGMDeathMessages;
@@ -195,7 +189,6 @@ function connect(bot, teams) {
     bot.chatAddPattern(/\[Mixed\] (.+) \((.*?)/, 'playerscmd', 'Players playing on Mixed');
     bot.chatAddPattern(/^(?:[\w\d_]+) was(?:.*)by ([\w\d_]+) from ([\d]+) blocks$/, 'shotblocks', 'shot kill');
     bot.chatAddPattern(/^Time: ([\d:]+).(?:[\d]+)$/, 'lengthmatch', 'length match');
-    bot.chatAddPattern(/\(Team\) (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+): alexa (.*)$/, 'alexacmd', 'alexa');
     bot.chatAddPattern(/^Current: ([\w]+)$/, 'rotationchange', 'rotation change');
     bot.chatAddPattern(/^\+(?:[\d]) Droplet(?:.*)$/, 'droplet', 'someone gave droplet');
     bot.chatAddPattern(/^You are currently on \[Lobby\]$/, 'connectedlobby', 'bot currently on Lobby');
@@ -389,19 +382,9 @@ function connect(bot, teams) {
         });
         connection.query("UPDATE currentmap SET Value = '" + numberOfPlayers + "(" + numberOfObservers + ")' WHERE id='8';");
     }, 5000);
-    bot.on('alexacmd', (username, message) => {
-        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
-            connection.query(
-                "SELECT Value FROM currentmap WHERE id='7'",
-                function (err, result, fields) {
-                    sendToChat(bot, 'The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
-                }
-            );
-        }
-    });
     bot.on('shotblocks', (username, message) => {
         if (Number(message) > 100)
-            sendToChat(bot, '/g Holy shot! What a lovely long shot ' + username + " (" + message + " blocks)!");
+            sendToChat(bot, '/g Holy shot! What a lovely long kill shot ' + username + " from " + message + " blocks!");
         connection.query(
             "SELECT Value FROM facts WHERE id='2'",
             function (err, result, fields) {
@@ -453,12 +436,26 @@ function connect(bot, teams) {
         if (blacklistUsernames.includes(username)) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' asked: ' + message + '\r\n');
-        build.dialog({ type: 'text', content: message }, { conversationId: username })
-            .then(function (res) {
-                datetime = new Date();
-                fs.appendFile('mentionlog', '[' + datetime + '] response for ' + username + ' : ' + res.messages[0].content + '\r\n');
-                sendToChat(bot, username + ' ' + res.messages[0].content);
-            });
+        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
+            connection.query(
+                "SELECT Value FROM currentmap WHERE id='7'",
+                function (err, result, fields) {
+                    if (!result[0]['Value'].includes('Computing'))
+                        sendToChat(bot, username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
+                    else if (!result[0]['Value'].includes('Too close to predict'))
+                        sendToChat(bot, username + ' I\'m sorry it\'s too hard to predict the match right now...');
+                    else
+                        sendToChat(bot, username + ' Wait a bit! I\'m still generating the data...');
+                }
+            );
+        }
+        else
+            build.dialog({ type: 'text', content: message }, { conversationId: username })
+                .then(function (res) {
+                    datetime = new Date();
+                    fs.appendFile('mentionlog', '[' + datetime + '] response for ' + username + ' : ' + res.messages[0].content + '\r\n');
+                    sendToChat(bot, username + ' ' + res.messages[0].content);
+                });
     });
     bot.on('askg', (username, match1, message = match1) => {
         if (username === bot.username) return
