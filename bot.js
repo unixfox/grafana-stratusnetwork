@@ -609,8 +609,8 @@ function connect(bot, teams) {
         else {
             var datetime = new Date();
             fs.appendFile('mentionlog', '[' + datetime + ']Received a PM from ' + username + ' : ' + message + '\r\n');
-            bot.chat('/msg ' + username + ' Hi! I\'m a bot!');
-            setTimeout(function () { bot.chat('/msg ' + username + ' I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
+            bot.chat('/msg ' + username + ' Hi! I\'m a bot! If you are trying to talk to me please instead type my username and your sentence in the chat.');
+            setTimeout(function () { bot.chat('/msg ' + username + ' Btw I help track the statistics of the match for the Stratus Network Monitoring project! See more here: https://stratus.network/forums/topics/5b7b4498ba15960001003ef9'); }, 500);
         }
     });
     bot.on('kicked', (reason, loggedIn) => {
