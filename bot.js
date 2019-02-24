@@ -194,7 +194,7 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^You are currently on \[Lobby\]$/, 'connectedlobby', 'bot currently on Lobby');
     bot.chatAddPattern(/^The match has started!$/, 'matchstarted', 'the match just started');
     bot.chatAddPattern(/^Game over!$/, 'tiematch', 'tie match');
-    bot.chatAddPattern(/^(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_ ]+) (?:wins|win|winners)!$/, 'matchwin', 'end of the match');
+    bot.chatAddPattern(/^((?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)|(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+) and (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)) (?:wins|win|winners)!$/, 'matchwin', 'end of the match');
     bot.chatAddPattern(/^Server restarting!$/, 'serverrestart', 'Server is restarting');
     bot._client.on('success', (packet) => {
         bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
@@ -249,7 +249,7 @@ function connect(bot, teams) {
             "SELECT player, deaths FROM matchkillsdeaths ORDER BY deaths DESC LIMIT 1;",
             function (err, result, fields) {
                 setTimeout(function () {
-                    if (Number(result[0][0]['Value']) > 0)
+                    if (Number(result[0][0]['Value']) > 0 && result[1][0]['player'])
                         sendToChat(bot, randomsentense + " Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
                             "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
                             result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
