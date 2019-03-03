@@ -383,12 +383,12 @@ function connect(bot, teams) {
         connection.query("UPDATE currentmap SET Value = '" + numberOfPlayers + "(" + numberOfObservers + ")' WHERE id='8';");
     }, 5000);
     bot.on('shotblocks', (username, message) => {
-        if (Number(message) > 100)
-            sendToChat(bot, '/g Holy shot! What a lovely long kill shot ' + username + " from " + message + " blocks!");
         connection.query(
             "SELECT Value FROM facts WHERE id='2'",
             function (err, result, fields) {
                 if (Number(message) > Number(result[0]['Value'])) {
+                    if (Number(message) > 100)
+                        sendToChat(bot, '/g Holy shot! What a lovely long kill shot ' + username + " from " + message + " blocks!");
                     connection.query(
                         "UPDATE `facts` SET `value`='" + message + "' WHERE  `id`=2;"
                     );
