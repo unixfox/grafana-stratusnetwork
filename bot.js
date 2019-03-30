@@ -194,7 +194,7 @@ function connect(bot, teams) {
     bot.chatAddPattern(/^You are currently on \[Lobby\]$/, 'connectedlobby', 'bot currently on Lobby');
     bot.chatAddPattern(/^The match has started!$/, 'matchstarted', 'the match just started');
     bot.chatAddPattern(/^Game over!$/, 'tiematch', 'tie match');
-    bot.chatAddPattern(/^((?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)|(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+) and (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)) (?:wins|win|winners)!$/, 'matchwin', 'end of the match');
+    bot.chatAddPattern(/^((?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_ ]+)|(?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+) and (?:\[[\w]+\] |[\W]|[\W]\[[\w]+\])?([\w\d_]+)) (?:wins|win|winners)!$/, 'matchwin', 'end of the match');
     bot.chatAddPattern(/^Server restarting!$/, 'serverrestart', 'Server is restarting');
     bot._client.on('success', (packet) => {
         bot.chatAddPattern(RegExp("^<(?:\\[[\\w]+\\] |[\\W]|[\\W]\\[[\\w]+\\])?([\\w\\d_]+)>: (?:username (.+)|(.+) username)$".replace(/username/g, bot.username)), 'askg', 'Ask Global');
