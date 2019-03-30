@@ -256,6 +256,8 @@ function connect(bot, teams) {
                     else if (result[1][0] || result[2][0])
                         sendToChat(bot, randomsentense + " The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
                             result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                    else
+                        sendToChat(bot, randomsentense);
                     connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                 }, 4000);
             }
