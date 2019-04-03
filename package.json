@@ -7,7 +7,7 @@
   "description": "Minecraft bot",
   "main": "bot.js",
   "dependencies": {
-    "@sentry/node": "^4.5.2",
+    "@sentry/node": "^5.0.3",
     "body-parser": "^1.18.3",
     "cooldown": "^0.2.0",
     "dot-properties": "^0.2.1",
