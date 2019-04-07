@@ -291,11 +291,11 @@ function connect(bot, teams) {
                 setTimeout(function () {
                     if (Number(result[0][0]['Value']) > 0)
                         sendToChat(bot, "What a tie! Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
-                            "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
-                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                            "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kill(s)! " +
+                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " death(s).");
                     else if (result[1][0] || result[2][0])
-                        sendToChat(bot, "What a tie! The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
-                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " deaths.");
+                        sendToChat(bot, "What a tie! The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kill(s)! " +
+                            result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " death(s).");
                     connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                 }, 4000);
             }
