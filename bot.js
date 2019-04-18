@@ -438,7 +438,7 @@ function connect(bot, teams) {
         if (blacklistUsernames.includes(username)) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' asked: ' + message + '\r\n');
-        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
+        if (message.includes('prediction') == true) {
             connection.query(
                 "SELECT Value FROM currentmap WHERE id='7'",
                 function (err, result, fields) {
@@ -465,7 +465,7 @@ function connect(bot, teams) {
         if (blacklistUsernames.includes(username)) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' asked: ' + message + '\r\n');
-        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox"))
+        if (message.includes('prediction') == true)
             connection.query(
                 "SELECT Value FROM currentmap WHERE id='7'",
                 function (err, result, fields) {
