@@ -483,9 +483,9 @@ function connect(bot, teams) {
                     }
                     else {
                         if (!teams.Observers || teams.Observers.includes(username) == true)
-                            sendToChat(bot, '/msg ' + username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
-                        else
                             sendToChat(bot, username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
+                        else
+                            sendToChat(bot, '/msg ' + username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
                     }
                 }
             );
