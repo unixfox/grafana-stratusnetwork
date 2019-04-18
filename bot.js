@@ -442,12 +442,12 @@ function connect(bot, teams) {
             connection.query(
                 "SELECT Value FROM currentmap WHERE id='7'",
                 function (err, result, fields) {
-                    if (!result[0]['Value'].includes('Computing'))
-                        sendToChat(bot, username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
-                    else if (!result[0]['Value'].includes('Too close to predict'))
+                    if (result[0]['Value'].includes('Computing'))
+                        sendToChat(bot, username + ' Wait a bit! I\'m still generating the data...');
+                    else if (result[0]['Value'].includes('Too close to predict'))
                         sendToChat(bot, username + ' I\'m sorry it\'s too hard to predict the match right now...');
                     else
-                        sendToChat(bot, username + ' Wait a bit! I\'m still generating the data...');
+                        sendToChat(bot, username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
                 }
             );
         }
@@ -465,15 +465,32 @@ function connect(bot, teams) {
         if (blacklistUsernames.includes(username)) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' asked: ' + message + '\r\n');
-        build.dialog({ type: 'text', content: message }, { conversationId: username })
-            .then(function (res) {
-                datetime = new Date();
-                fs.appendFile('mentionlog', '[' + datetime + '] response for ' + username + ' : ' + res.messages[0].content + '\r\n');
-                if (!teams.Observers || teams.Observers.includes(username) == true)
-                    sendToChat(bot, username + ' ' + res.messages[0].content);
-                else
-                    sendToChat(bot, '/g ' + username + ' ' + res.messages[0].content);
-            });
+        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
+            if (!teams.Observers || teams.Observers.includes(username) == true)
+                connection.query(
+                    "SELECT Value FROM currentmap WHERE id='7'",
+                    function (err, result, fields) {
+                        if (result[0]['Value'].includes('Computing'))
+                            sendToChat(bot, username + ' Wait a bit! I\'m still generating the data...');
+                        else if (result[0]['Value'].includes('Too close to predict'))
+                            sendToChat(bot, username + ' I\'m sorry it\'s too hard to predict the match right now...');
+                        else
+                            sendToChat(bot, username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
+                    }
+                );
+            else
+                sendToChat(bot, '/msg ' + username + ' I\'m sorry I can only predict the match for observers.');
+        }
+        else
+            build.dialog({ type: 'text', content: message }, { conversationId: username })
+                .then(function (res) {
+                    datetime = new Date();
+                    fs.appendFile('mentionlog', '[' + datetime + '] response for ' + username + ' : ' + res.messages[0].content + '\r\n');
+                    if (!teams.Observers || teams.Observers.includes(username) == true)
+                        sendToChat(bot, username + ' ' + res.messages[0].content);
+                    else
+                        sendToChat(bot, '/g ' + username + ' ' + res.messages[0].content);
+                });
     });
     bot.on('chat', (username, message) => {
         if (username === bot.username) return
