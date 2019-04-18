@@ -465,22 +465,30 @@ function connect(bot, teams) {
         if (blacklistUsernames.includes(username)) return
         var datetime = new Date();
         fs.appendFile('mentionlog', '[' + datetime + ']' + username + ' asked: ' + message + '\r\n');
-        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox")) {
-            if (!teams.Observers || teams.Observers.includes(username) == true)
-                connection.query(
-                    "SELECT Value FROM currentmap WHERE id='7'",
-                    function (err, result, fields) {
-                        if (result[0]['Value'].includes('Computing'))
+        if (message.includes('prediction') == true && (cd.fire() || username == "unixfox"))
+            connection.query(
+                "SELECT Value FROM currentmap WHERE id='7'",
+                function (err, result, fields) {
+                    if (result[0]['Value'].includes('Computing')) {
+                        if (!teams.Observers || teams.Observers.includes(username) == true)
                             sendToChat(bot, username + ' Wait a bit! I\'m still generating the data...');
-                        else if (result[0]['Value'].includes('Too close to predict'))
-                            sendToChat(bot, username + ' I\'m sorry it\'s too hard to predict the match right now...');
                         else
-                            sendToChat(bot, username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
+                            sendToChat(bot, '/msg ' + username + ' Wait a bit! I\'m still generating the data...');
                     }
-                );
-            else
-                sendToChat(bot, '/msg ' + username + ' I\'m sorry I can only predict the match for observers.');
-        }
+                    else if (result[0]['Value'].includes('Too close to predict')) {
+                        if (!teams.Observers || teams.Observers.includes(username) == true)
+                            sendToChat(bot, '/msg ' + username + ' I\'m sorry it\'s too hard to predict the match right now...');
+                        else
+                            sendToChat(bot, username + ' I\'m sorry it\'s too hard to predict the match right now...');
+                    }
+                    else {
+                        if (!teams.Observers || teams.Observers.includes(username) == true)
+                            sendToChat(bot, username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
+                        else
+                            sendToChat(bot, '/msg ' + username + ' The prediction of the match: ' + result[0]['Value'] + ' will probably win.');
+                    }
+                }
+            );
         else
             build.dialog({ type: 'text', content: message }, { conversationId: username })
                 .then(function (res) {
