@@ -241,8 +241,8 @@ function connect(bot, teams) {
             pusher.trigger('stratusgraphchannel', 'endmatch', {
                 "message": "end"
             });
-        var sentenses = ['Good job!', 'gg', 'Great match!', 'Good game!', 'Nice match!', 'Great game!', 'Well played!', 'Nice job!', 'What a match!'];
-        var randomsentense = sentenses[Math.floor(Math.random() * sentenses.length)];
+        var sentences = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match!', 'Great game!', 'Well played!', 'Nice job!', 'What a match!', 'Game over. The better team wins!'];
+        var randomsentence = sentences[Math.floor(Math.random() * sentences.length)];
         connection.query(
             "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
             "SELECT player, kills FROM matchkillsdeaths ORDER BY kills DESC LIMIT 1;" +
@@ -250,14 +250,14 @@ function connect(bot, teams) {
             function (err, result, fields) {
                 setTimeout(function () {
                     if (Number(result[0][0]['Value']) > 0 && result[1][0]['player'])
-                        sendToChat(bot, randomsentense + " Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
+                        sendToChat(bot, randomsentence + " Longest kill shot by " + result[0][1]['Value'] + " from " + result[0][0]['Value'] + " blocks! " +
                             "The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kill(s)! " +
                             result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " death(s).");
                     else if (result[1][0] || result[2][0])
-                        sendToChat(bot, randomsentense + " The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
+                        sendToChat(bot, randomsentence + " The top killer is " + result[1][0]['player'] + " with " + result[1][0]['kills'] + " kills! " +
                             result[2][0]['player'] + " died the most with " + result[2][0]['deaths'] + " death(s).");
                     else
-                        sendToChat(bot, randomsentense);
+                        sendToChat(bot, randomsentence);
                     connection.query("UPDATE matchfacts SET Value = '0' WHERE id='1';");
                 }, 4000);
             }

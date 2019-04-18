@@ -1,4 +1,4 @@
-![GitHub stars](https://img.shields.io/github/stars/unixfox/grafana-stratusnetwork.svg?style=social) ![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/unixfox/grafana-stratusnetwork.svg) ![Docker Cloud Automated build](https://img.shields.io/docker/cloud/automated/unixfox/grafana-stratusnetwork.svg) ![GitHub package.json version](https://img.shields.io/github/package-json/v/unixfox/grafana-stratusnetwork.svg)
+![GitHub stars](https://img.shields.io/github/stars/unixfox/grafana-stratusnetwork.svg?style=social) [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/unixfox/grafana-stratusnetwork.svg)](https://hub.docker.com/r/unixfox/grafana-stratusnetwork) [![Docker Cloud Automated build](https://img.shields.io/docker/cloud/automated/unixfox/grafana-stratusnetwork.svg)](https://hub.docker.com/r/unixfox/grafana-stratusnetwork) ![GitHub package.json version](https://img.shields.io/github/package-json/v/unixfox/grafana-stratusnetwork.svg)
 # Description
 Scripts and programs for generating the grafana dashboard for the Minecraft server Stratus Network
 
