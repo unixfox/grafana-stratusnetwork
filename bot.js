@@ -241,7 +241,10 @@ function connect(bot, teams) {
             pusher.trigger('stratusgraphchannel', 'endmatch', {
                 "message": "end"
             });
-        var sentences = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match!', 'Great game!', 'Well played!', 'Nice job!', 'What a match!', 'Game over. The better team wins!'];
+        var sentences = ['Good job!', 'gg!', 'Great match!', 'Good game!', 'Nice match!',
+            'Great game!', 'Well played!', 'Nice job!', 'What a match!', 'Game over. The better team wins!',
+            'Victory Royale!', 'Stunning match!', 'Winner winner, chicken dinner!', 'Finally, an ending!',
+            'We\'re in the endgame now.'];
         var randomsentence = sentences[Math.floor(Math.random() * sentences.length)];
         connection.query(
             "SELECT Value FROM matchfacts WHERE id IN ('1','2');" +
